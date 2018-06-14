@@ -1,0 +1,9 @@
+Pathway	PathAnnotation	HypergeoPval	NumGene_inPathway	NumGenes_inbg	PropPathway	NumEdgesformed_inbg	Enriched_Edgesize
+GO:0006476	protein deacetylation	0.0339159	10	8	0.8	4	1
+GO:0016575	histone deacetylation	0.136455	30	16	0.533333	17	1
+GO:0070932	histone H3 deacetylation	0.0138105	21	13	0.619048	21	2
+R-HSA-2122947	NOTCH1 Intracellular Domain Regulates Transcription	0.00954016	47	24	0.510638	51	3
+WP2586	Aryl Hydrocarbon Receptor	0.0362025	46	24	0.521739	35	2
+etspathway	mets affect on macrophage differentiation	0.106111	18	12	0.666667	13	1
+smad2_3nuclearpathway	Regulation of nuclear SMAD2/3 signaling	0.424366	78	39	0.5	168	2
+telomerasepathway	Regulation of Telomerase	0.33945	68	36	0.529412	48	1

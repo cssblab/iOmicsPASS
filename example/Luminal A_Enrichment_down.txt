@@ -1,0 +1,20 @@
+Pathway	PathAnnotation	HypergeoPval	NumGene_inPathway	NumGenes_inbg	PropPathway	NumEdgesformed_inbg	Enriched_Edgesize
+GO:0006268	DNA unwinding involved in DNA replication	0.000824994	10	6	0.6	3	3
+GO:0006271	DNA strand elongation involved in DNA replication	0	33	17	0.515152	49	31
+GO:0070934	CRD-mediated mRNA stabilization	0.255971	5	3	0.6	3	1
+R-HSA-1538133	G0 and Early G1	0.812943	18	11	0.611111	17	1
+R-HSA-176417	Phosphorylation of Emi1	0.00306816	6	4	0.666667	4	3
+R-HSA-176974	Unwinding of DNA	0	12	8	0.666667	19	19
+R-HSA-68867	Assembly of the pre-replicative complex	0	20	11	0.55	19	19
+R-HSA-68949	Orc1 removal from chromatin	0	26	14	0.538462	21	20
+R-HSA-69052	Switching of origins to a post-replicative state	0	26	14	0.538462	21	20
+R-HSA-69190	DNA strand elongation	0	33	17	0.515152	49	31
+R-HSA-69300	Removal of licensing factors from origins	0	28	15	0.535714	22	21
+R-HSA-69304	Regulation of DNA replication	0	28	15	0.535714	22	21
+WP2586	Aryl Hydrocarbon Receptor	0.968367	46	24	0.521739	35	1
+efppathway	estrogen responsive protein efp controls cell cycle and breast tumors growth	0.134625	15	8	0.533333	7	2
+hdac_classi_pathway	Signaling events mediated by HDAC Class I	0.999593	56	33	0.589286	79	1
+hifpathway	hypoxia-inducible factor in the cardivascular system	0.588201	16	9	0.5625	9	1
+mcmpathway	cdk regulation of dna replication	0	18	10	0.555556	19	19
+smad2_3nuclearpathway	Regulation of nuclear SMAD2/3 signaling	1	78	39	0.5	168	1
+telomerasepathway	Regulation of Telomerase	0.947585	68	36	0.529412	48	2

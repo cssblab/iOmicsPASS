@@ -1,0 +1,6 @@
+Pathway	PathAnnotation	HypergeoPval	NumGene_inPathway	NumGenes_inbg	PropPathway	NumEdgesformed_inbg	Enriched_Edgesize
+GO:0045945	positive regulation of transcription from RNA polymerase III promoter	0.016196	11	7	0.636364	3	1
+WP138	Androgen receptor signaling pathway	1.01534e-10	89	47	0.52809	130	11
+WP2586	Aryl Hydrocarbon Receptor	0.173628	46	24	0.521739	35	1
+ar_tf_pathway	Regulation of Androgen receptor activity	0.006489	51	28	0.54902	70	3
+smad2_3nuclearpathway	Regulation of nuclear SMAD2/3 signaling	3.46695e-06	78	39	0.5	168	8

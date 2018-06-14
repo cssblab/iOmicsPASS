@@ -1,0 +1,53 @@
+############################
+### input parameter file ###
+############################
+
+## input files ##
+#DNA_FILE
+RNA_FILE = ../example/mRNA_BRCA_example.txt
+PROTEIN_FILE = ../example/Proteomics_BRCA_example.txt
+
+## Network files ##
+PPI_NETWORK = ../example/PPInetwork_example.txt
+TF_NETWORK = ../example/TFnetwork_example.txt
+MODULE_FILE = ../example/PathwayEnrichment_example.txt
+
+## subtyping file ##
+SUBTYPE_FILE = ../example/BRCA_groupinfo_example.txt
+
+## standardardisation ##
+#ZTRANS_DNA = true
+ZTRANS_RNA = true
+ZTRANS_PROT = true
+
+## whether or not to perform log(base2) transformation ##
+#LOG_TRANSFORM_DNA = false
+LOG_TRANSFORM_RNA = true
+LOG_TRANSFORM_PROT = false
+
+## parameters within each group ##
+MIN_OBS = 10
+MIN_PROP = 0.8
+### only one of the two has to be specified, MIN_PROP = 0.5 and MIN_OBS=1 by default ###
+### if both specified, apply both simultaneously ###
+
+## Apply KNN to impute for missing values ##
+KNN_IMPUTE = true
+MAX_BLOCKSIZE = 1500
+
+## Specify if there is different directions in the type of interaction edges ##
+INTERACT = false
+
+ANALYSE_DNA = false    
+## if true, filename should be provided for DNA_file
+## if protein-lvl data is not available, one can also replace protein with rna-level data
+
+## parameter for shrunken centroid ##
+CROSS_VALIDATION = true
+CV_FOLD = 10
+#MIN_THRES
+
+## parameter for subnetwork enrichment ##
+BACKGROUND_PROP = 0.5
+MINBG_SIZE = 3
+MINSIG_SIZE = 1
