@@ -1,8 +1,0 @@
-Pathway	PathAnnotation	HypergeoPval	NumGene_inPathway	NumGenes_inbg	PropPathway	NumEdgesformed_inbg	Enriched_Edgesize
-GO:0045945	positive regulation of transcription from RNA polymerase III promoter	0.0149721	11	7	0.636364	3	1
-Pathway_TSLP	TSLP	0.029723	21	12	0.571429	6	1
-WP138	Androgen receptor signaling pathway	0.00411064	89	47	0.52809	130	4
-ar_tf_pathway	Regulation of Androgen receptor activity	0.297285	51	28	0.54902	70	1
-p53hypoxiapathway	hypoxia and p53 in the cardiovascular system	0.044256	22	11	0.5	9	1
-retinoic_acid_pathway	Retinoic acid receptors-mediated signaling	0.127052	30	15	0.5	27	1
-smad2_3nuclearpathway	Regulation of nuclear SMAD2/3 signaling	0.00153982	78	39	0.5	168	5

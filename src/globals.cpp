@@ -221,7 +221,7 @@ bool readUserInput(string file ,Input_t &UserInput){
 	      d = trim(v.at(1));
 	      UserInput.minprop = stod(d);
       }
-	    if(GREP(line, "INTERACTION_SIGN")){
+	    if(GREP(line, "INTERACT_SIGN")){
 	      v = stringSplit(line,'=');
 	      d = trim(v.at(1));
 	      bool d_new;
@@ -1515,7 +1515,10 @@ vector<double> fillPAMmap2(bool useDNA, bool interact,set<string> *Alledges,vect
             		     if(useDNA) rr= xA+xB-xC;
             		   }
             		 }
-            		 if(datatype=="ppi") rr = xA+xB; 
+            		 if(datatype=="ppi") {
+				if(first){countPos++; first=false;}
+				rr = xA+xB;
+			 } 
             		 outFile<<"\t"<<rr;
             		 grp_x.push_back(rr);
             		 x_vec.push_back(rr);

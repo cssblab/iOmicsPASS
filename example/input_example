@@ -36,7 +36,7 @@ KNN_IMPUTE = true
 MAX_BLOCKSIZE = 1000
 
 ## Specify if there is different directions in the type of interaction edges ##
-INTERACT = false
+INTERACT_SIGN = false
 
 ANALYSE_DNA = false    
 ## if true, filename should be provided for DNA_file

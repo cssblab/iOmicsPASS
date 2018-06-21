@@ -1,9 +1,0 @@
-Pathway	PathAnnotation	HypergeoPval	NumGene_inPathway	NumGenes_inbg	PropPathway	NumEdgesformed_inbg	Enriched_Edgesize
-GO:0045945	positive regulation of transcription from RNA polymerase III promoter	0.0338286	11	7	0.636364	3	1
-GO:0070914	UV-damage excision repair	0.000384985	9	5	0.555556	3	2
-GO:0070932	histone H3 deacetylation	0.214196	21	13	0.619048	21	1
-WP138	Androgen receptor signaling pathway	0.000721839	89	47	0.52809	130	7
-WP2586	Aryl Hydrocarbon Receptor	0.0602032	46	24	0.521739	35	2
-ar_tf_pathway	Regulation of Androgen receptor activity	0.04578	51	28	0.54902	70	3
-smad2_3nuclearpathway	Regulation of nuclear SMAD2/3 signaling	0.0434179	78	39	0.5	168	5
-telomerasepathway	Regulation of Telomerase	0.103843	68	36	0.529412	48	2
