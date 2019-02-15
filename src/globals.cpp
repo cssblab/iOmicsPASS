@@ -1632,8 +1632,8 @@ vector<double> fillPAMmap2(bool useDNA, bool interact,set<string> *Alledges,vect
              }
          }
 
-         int NumTF = collect_dik_tf.size();
-         int NumPPI = collect_dik_ppi.size();
+         int NumTF = tf_N.size();
+         int NumPPI = ppi_N.size();
          p_iter->second.NumFD_tf = NumTF;
          p_iter->second.NumFD_ppi = NumPPI;
          int totalNeighbors = tf_N.size() + ppi_N.size();
@@ -2211,9 +2211,9 @@ double CVKfold(bool useDNA, bool interact,int Kfold,set<string> *Alledges,vector
     double minClassError=999.0;
     double selectThres;
     map<int, vector<string> > CVmap;
-    random_device rd;
+    //random_device rd;
     
-    mt19937 g(rd());
+    mt19937 g(time(0));
     //shuffle(indices.begin(), indices.end(), g);
     //for(int j=0; j<indices.size(); j++) cerr<<indices.at(j)<<"\t";
 
