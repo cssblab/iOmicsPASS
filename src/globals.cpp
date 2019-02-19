@@ -2211,9 +2211,9 @@ double CVKfold(bool useDNA, bool interact,int Kfold,set<string> *Alledges,vector
     double minClassError=999.0;
     double selectThres;
     map<int, vector<string> > CVmap;
-    //random_device rd;
+    random_device rd;
     
-    mt19937 g(time(0));
+    mt19937 g(rd());
     //shuffle(indices.begin(), indices.end(), g);
     //for(int j=0; j<indices.size(); j++) cerr<<indices.at(j)<<"\t";
 
