@@ -1632,8 +1632,8 @@ vector<double> fillPAMmap2(bool useDNA, bool interact,set<string> *Alledges,vect
              }
          }
 
-         int NumTF = collect_dik_tf.size();
-         int NumPPI = collect_dik_ppi.size();
+         int NumTF = tf_N.size();
+         int NumPPI = ppi_N.size();
          p_iter->second.NumFD_tf = NumTF;
          p_iter->second.NumFD_ppi = NumPPI;
          int totalNeighbors = tf_N.size() + ppi_N.size();
@@ -1903,8 +1903,8 @@ vector<double> fillPAMmap(bool useDNA, bool interact ,set<string> *Alledges,vect
                 if(!newstr.empty()) ppi_N.insert(newstr);
             }
         }
-        int NumTF = collect_dik_tf.size();
-        int NumPPI = collect_dik_ppi.size();
+        int NumTF = tf_N.size();
+        int NumPPI = ppi_N.size();
         p_iter->second.NumFD_tf = NumTF;
         p_iter->second.NumFD_ppi = NumPPI;
         int totalNeighbors = tf_N.size() + ppi_N.size();

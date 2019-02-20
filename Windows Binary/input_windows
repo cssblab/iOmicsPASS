@@ -3,7 +3,7 @@
 ############################
 
 ## input files ##
-#DNA_FILE
+DNA_FILE = ../example/CNV_BRCA_example.txt
 RNA_FILE = ../example/mRNA_BRCA_example.txt
 PROTEIN_FILE = ../example/Proteomics_BRCA_example.txt
 
@@ -16,12 +16,12 @@ MODULE_FILE = ../example/PathwayEnrichment_example.txt
 SUBTYPE_FILE = ../example/BRCA_groupinfo_example.txt
 
 ## standardardisation ##
-#ZTRANS_DNA = true
+ZTRANS_DNA = true
 ZTRANS_RNA = true
 ZTRANS_PROT = true
 
 ## whether or not to perform log(base2) transformation ##
-#LOG_TRANSFORM_DNA = false
+LOG_TRANSFORM_DNA = false
 LOG_TRANSFORM_RNA = true
 LOG_TRANSFORM_PROT = false
 
@@ -38,7 +38,7 @@ MAX_BLOCKSIZE = 1500
 ## Specify if there is different directions in the type of interaction edges ##
 INTERACT_SIGN = false
 
-ANALYSE_DNA = false    
+ANALYSE_DNA = true   
 ## if true, filename should be provided for DNA_file
 ## if protein-lvl data is not available, one can also replace protein with rna-level data
 

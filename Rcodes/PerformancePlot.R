@@ -3,7 +3,7 @@
 ## R-code for Performance Plot ## 
 #################################
 
-CVdat = read.delim("CVerrors.txt",as.is=T)
+CVdat = read.delim("CVerrors.txt",as.is=T,check.names=F)
 
 minError = min(CVdat$CVerror)
 minThres = CVdat$Threshold[which(CVdat$CVerror==minError)][1]
@@ -27,7 +27,7 @@ plot(CVdat$Threshold,CVdat$CVerror,ylim=c(0,1),type="l",col=1,lwd=2.5, cex.axis=
 mtext("Edges selected",side=3,line=3)
 axis(side = 3,at=CVdat$Threshold, lab=CVdat$EdgesSelected,las=2,srt= 45,cex.axis=0.8)
 for(i in 1:length(cid)) lines(CVdat$Threshold, CVdat[,cid[i]], col=cc[i],lty=1)
-legend("topleft",legend_lab, col=c(1,cc),lty=1 ,lwd=c(2,rep(1,length(ll))),cex=0.8)
+legend("topleft",legend_lab, col=c(1,cc),lty=1 ,lwd=c(4,rep(4,length(ll))),cex=0.8)
 
 points(minThres,CVdat$CVerror[match(minThres,CVdat$Threshold)], pch=4,lwd=2,col=2)
 points(xpt,ypt, pch=4,lwd=2,col=2)
