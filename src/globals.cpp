@@ -34,6 +34,40 @@
 using namespace std;
 using namespace boost::math;
 
+// to deal with different EOL formats
+std::istream& safeGetline(std::istream& is, std::string& t)
+{
+    t.clear();
+
+    // The characters in the stream are read one-by-one using a std::streambuf.
+    // That is faster than reading them one-by-one using the std::istream.
+    // Code that uses streambuf this way must be guarded by a sentry object.
+    // The sentry object performs various tasks,
+    // such as thread synchronization and updating the stream state.
+
+    std::istream::sentry se(is, true);
+    std::streambuf* sb = is.rdbuf();
+
+    for(;;) {
+        int c = sb->sbumpc();
+        switch (c) {
+        case '\n':
+            return is;
+        case '\r':
+            if(sb->sgetc() == '\n')
+                sb->sbumpc();
+            return is;
+        case std::streambuf::traits_type::eof():
+            // Also handle the case when the last line has no line ending
+            if(t.empty())
+                is.setstate(std::ios::eofbit);
+            return is;
+        default:
+            t += (char)c;
+        }
+    }
+}
+
 // Function splits a string on character
 vector<string> stringSplit(string str, char delim) {
     vector<string> ret;
@@ -50,6 +84,26 @@ vector<string> stringSplit(string str, char delim) {
     if(!buf.empty()) ret.push_back(buf);
     return(ret);
 }
+
+
+vector<string> stringSplit2(string str,string delimeter)
+{
+     vector<string> splittedString;
+     int startIndex = 0;
+     int  endIndex = 0;
+     while( (endIndex = str.find(delimeter, startIndex)) < str.size() ){
+       string val = str.substr(startIndex, endIndex - startIndex);
+       splittedString.push_back(val);
+       startIndex = endIndex + delimeter.size();
+     }
+     if(startIndex < str.size()){
+       string val = str.substr(startIndex);
+       splittedString.push_back(val);
+     }
+     return splittedString;
+}
+
+
 
 string concatenate(vector<string> vec, char delim){
     string ret=vec.at(0);
@@ -110,6 +164,31 @@ vector<string> IntersectVec(vector<string> v1, vector<string> v2){
       return v3;
 }
 
+vector<string> IntersectVec2(vector<string> v1, vector<string> v2, int type){
+
+      vector<string> v3;
+      vector<string> v1_new;
+      vector<string> v2_new;
+      for(int i=0; i<v1.size(); i++) v1_new.push_back((stringSplit2(v1[i],"...")).at(0));
+      for(int i=0; i<v1.size(); i++) v2_new.push_back((stringSplit2(v2[i],"...")).at(0));
+      sort(v1_new.begin(), v1_new.end());
+      sort(v2_new.begin(), v2_new.end());
+      string DT, newv3;
+      if(type==1) DT = "Z";
+      if(type==2) DT = "Y";
+      if(type==3) DT = "X";
+    
+      set_intersection(v1_new.begin(), v1_new.end(), v2_new.begin(), v2_new.end(), back_inserter(v3));
+      for(int i=0; i<v3.size(); i++){
+	newv3 = v3[i] +"...dat"+DT;
+	v3[i] = newv3;
+      }
+
+      return v3;
+}
+
+
+
 set<string> IntersectSet(set<string> v1, set<string> v2){
     
     set<string> ret;
@@ -153,7 +232,7 @@ bool containsVec(string g, vector<string> *vec){
 
 
 
-bool readUserInput(string file ,Input_t &UserInput){
+bool readUserInput(string file ,string dir, Input_t &UserInput){
     bool ret = true;
     ifstream File;
     File.open(file.c_str(), ios::in);
@@ -164,9 +243,10 @@ bool readUserInput(string file ,Input_t &UserInput){
     }
     string line, d;
     vector<string> v;
+    UserInput.directory = dir;
  
     while(!File.eof()){
-	    getline(File,line);
+	    safeGetline(File,line);
 	    string start = line.substr(0,1);
       regex expr("#");
 	    if(regex_match(start,expr)) continue;
@@ -176,39 +256,52 @@ bool readUserInput(string file ,Input_t &UserInput){
 	      d = trim(v.at(1));
 	      UserInput.blocksize = stoi(d);
 	    }
-	    if(GREP(line,"DNA_FILE")){
+	    if(GREP(line,"DATA_Z")){
 	      v = stringSplit(line,'=');
 	      d = trim(v.at(1));
-	      UserInput.dnafile = d;
+	      UserInput.dataZ = d;
       }
-	    if(GREP(line, "RNA_FILE")){
+	    if(GREP(line, "DATA_Y")){
 	      v = stringSplit(line,'=');
 	      d = trim(v.at(1));
-	      UserInput.rnafile = d;
+	      UserInput.dataY = d;
 	    }
-	    if(GREP(line,"PROTEIN_FILE")){
+	    if(GREP(line,"DATA_X")){
 	      v = stringSplit(line,'=');
 	      d = trim(v.at(1));
-	      UserInput.proteinfile = d;
+	      UserInput.dataX = d;
       }
-	    if(GREP(line,"PPI_NETWORK")){
+	    if(GREP(line,"NETWORK_WITHIN")){
 	      v = stringSplit(line,'=');
 	      d = trim(v.at(1));
-	      UserInput.ppinet = d;
+	      UserInput.withinNet = d;
   	  }
-	    if(GREP(line,"TF_NETWORK")){
+	    if(GREP(line,"NETWORK_BTW")){
 	      v = stringSplit(line,'=');
 	      d = trim(v.at(1));
-	      UserInput.tfnet = d;
+	      UserInput.betweenNet = d;
 	    }
 	    if(GREP(line,"SUBTYPE_FILE")){
 	      v = stringSplit(line,'=');
 	      d = trim(v.at(1));
 	      UserInput.subtypefile = d;
 	    }
-      if(GREP(line,"MODULE_FILE")){
+	    if(GREP(line,"USE_PRIOR")){
 	      v = stringSplit(line,'=');
-        d = trim(v.at(1));
+	      d = trim(v.at(1));
+	      bool d_new;
+	      if(d == "false") d_new = false;
+	      if(d =="true") d_new = true;
+	      UserInput.prior_input = d_new;
+	    }
+	    if(GREP(line,"PRIOR_FILE")){
+	      v = stringSplit(line,'=');
+	      d = trim(v.at(1));
+	      UserInput.priorfile = d;
+	    }
+      	    if(GREP(line,"MODULE_FILE")){
+	      v = stringSplit(line,'=');
+              d = trim(v.at(1));
 	      UserInput.pathwayfile = d;
 	    }
       if(GREP(line,"MIN_OBS")){
@@ -221,40 +314,32 @@ bool readUserInput(string file ,Input_t &UserInput){
 	      d = trim(v.at(1));
 	      UserInput.minprop = stod(d);
       }
-	    if(GREP(line, "INTERACT_SIGN")){
-	      v = stringSplit(line,'=');
-	      d = trim(v.at(1));
-	      bool d_new;
-	      if(d=="false") d_new = false;
-	      if(d=="true") d_new = true;
-	      UserInput.Interact = d_new;
-	    }	
 
-	    if(GREP(line,"LOG_TRANSFORM_DNA")){
+	    if(GREP(line,"LOG_TRANSFORM_Z")){
 	      v = stringSplit(line,'=');
 	      d = trim(v.at(1));
 	      bool d_new;
 	      if(d == "false") d_new = false;
 	      if(d =="true") d_new = true;
-	      UserInput.log_DNA = d_new;
+	      UserInput.log_Z = d_new;
 	      cerr<<"log DNA: "<<d<<endl;
 	    }
-	    if(GREP(line,"LOG_TRANSFORM_RNA")){
+	    if(GREP(line,"LOG_TRANSFORM_Y")){
 	      v = stringSplit(line,'=');
 	      d = trim(v.at(1));
 	      bool d_new;
 	      if(d == "false") d_new = false;
 	      if(d =="true") d_new = true;
-	      UserInput.log_RNA = d_new;
+	      UserInput.log_Y = d_new;
 	      cerr<<"log RNA: "<<d<<endl;
 	    }
-    	if(GREP(line,"LOG_TRANSFORM_PROT")){
+    	if(GREP(line,"LOG_TRANSFORM_X")){
     	   v = stringSplit(line,'=');
     	   d = trim(v.at(1));
     	   bool d_new;
     	   if(d == "false") d_new = false;
     	   if(d =="true") d_new = true;
-    	   UserInput.log_PROT = d_new;
+    	   UserInput.log_X = d_new;
     	   cerr<<"log prot: "<<d<<endl;
     	}
     	if(GREP(line,"KNN_IMPUTE")){
@@ -288,6 +373,14 @@ bool readUserInput(string file ,Input_t &UserInput){
     	   d = trim(v.at(1));
     	   UserInput.minthres = stod(d);
     	}
+    	if(GREP(line,"ENRICHMENT")){
+    	   v = stringSplit(line,'=');
+    	   d = trim(v.at(1));
+    	   bool d_new;
+    	   if(d =="false") d_new = false;
+    	   if(d =="true") d_new = true;
+    	   UserInput.enrichment = d_new;
+    	}
        	if(GREP(line,"BACKGROUND_PROP")){
     	   v = stringSplit(line,'=');
     	   d = trim(v.at(1));
@@ -303,37 +396,54 @@ bool readUserInput(string file ,Input_t &UserInput){
     	   d = trim(v.at(1));
     	   UserInput.minsigSize = stoi(d);
     	}
-      if(GREP(line,"ANALYSE_DNA")){
+      if(GREP(line,"ANALYZE_Z")){
 	       v = stringSplit(line,'=');
 	       d = trim(v.at(1));
 	       bool d_new;
 	       if(d =="false") d_new = false;
 	       if(d=="true") d_new = true;
-	       UserInput.analyseDNA = d_new;
+	       UserInput.analyzeZ = d_new;
 	    }
-      if(GREP(line,"Z_TRANSFORM_DNA")){
+     if(GREP(line,"NORMALIZE_ZBY")){
+	       v = stringSplit(line,'=');
+	       d = trim(v.at(1));
+	       string d_new;
+	       if(d =="Y"|d=="y") d_new = "Y";
+	       if(d=="X"|d=="x") d_new = "X";
+	       UserInput.normalize_Zby = d_new;
+	    }
+
+      if(GREP(line,"ANALYZE_Y")){
+	       v = stringSplit(line,'=');
+	       d = trim(v.at(1));
+	       bool d_new;
+	       if(d =="false") d_new = false;
+	       if(d=="true") d_new = true;
+	       UserInput.analyzeY = d_new;
+	    }
+      if(GREP(line,"Z_TRANSFORM_Z")){
 	       v = stringSplit(line,'=');
     	   d = trim(v.at(1));
     	   bool d_new;
     	   if(d =="false") d_new = false;
     	   if(d=="true") d_new = true;
-    	   UserInput.ztrans_dna = d_new;
+    	   UserInput.ztrans_Z = d_new;
     	}
-      if(GREP(line,"Z_TRANSFORM_RNA")){
+      if(GREP(line,"Z_TRANSFORM_Y")){
     	   v = stringSplit(line,'=');
     	   d = trim(v.at(1));
     	   bool d_new;
     	   if(d =="false") d_new = false;
     	   if(d=="true") d_new = true;
-    	   UserInput.ztrans_rna = d_new;
+    	   UserInput.ztrans_Y = d_new;
     	}
-      if(GREP(line,"Z_TRANSFORM_PROT")){
+      if(GREP(line,"Z_TRANSFORM_X")){
     	   v = stringSplit(line,'=');
     	   d = trim(v.at(1));
     	   bool d_new;
     	   if(d =="false") d_new = false;
     	   if(d=="true") d_new = true;
-    	   UserInput.ztrans_prot = d_new;
+    	   UserInput.ztrans_X = d_new;
     	}
     }
     return ret;
@@ -362,9 +472,9 @@ vector<vector<double> > creatematrix(vector<string> genes, vector<string> subjec
     ret.resize(genes.size());  
 
     for(int i = 0; i<genes.size(); i++){
-	      string currg = genes.at(i);
-        tmp_vec = extractGeneVec(datatype, currg, subjects, subjectMap);
-	      ret[i] = tmp_vec;
+	     string currg = genes.at(i);
+             tmp_vec = extractGeneVec(datatype, currg, subjects, subjectMap);
+	     ret[i] = tmp_vec;
     }
     return ret;
 }
@@ -473,41 +583,42 @@ void KNNimpute(vector<int> indices,vector<string> subjects, vector<string> genes
      
      int nrow = MAT.size();
      int ncol = (MAT.at(0)).size();
-     int countNA =0;
-	 
-     for(int h=0; h<indices.size(); h++){
-         
+     int countNA =0, counter=0;
+     string DT;
+     if(datatype==1) DT ="Z";
+     if(datatype==2) DT ="Y";
+     if(datatype==3) DT ="X";
+
+     for(int h=0; h<indices.size(); h++){         
           int i = indices.at(h);
           string curr_g = genes.at(i);
+	  string tag = "ID"+to_string(counter)+"...dat"+DT;
           x_j = MAT[i];
           bool search = false;
- 
-	      for(iter = MAP.begin(); iter!=MAP.end(); iter++){
+	  for(iter = MAP.begin(); iter!=MAP.end(); iter++){
 	        set<string> curr_block = iter->first;
-	        if(contains(curr_g, &curr_block)){
+	        if(contains(tag, &curr_block)){
 		        MAT_new =iter->second;
 		        search=true;
 		        continue;
 	        }
-	      }
-              for(int k=0; k<x_j.size(); k++){
-	         if(x_j.at(k)==NA_VAL){
-		        Cv = getCandidateG(k,x_j, MAT_new);
+	   }
+           for(int k=0; k<x_j.size(); k++){
+	        if(x_j.at(k)==NA_VAL){
+		      	Cv = getCandidateG(k,x_j, MAT_new);
 	          	string curr_sub = subjects.at(k);
  	          	if(Cv.size()>=knnK){
-              		  wdist_vec = calweightedEdist(x_j, Cv);
-	            	  yhat = imputeMV(k,wdist_vec,knnK, Cv);
+              		   wdist_vec = calweightedEdist(x_j, Cv);
+	            	   yhat = imputeMV(k,wdist_vec,knnK, Cv);
 	          	}
-	          	if(Cv.size()<knnK)  yhat = calMean(getColvec(k, MAT));
+	          	if(Cv.size() <knnK)  yhat = calMean(getColvec(k, MAT));
 	          	s_iterI = subjectMap.find(curr_sub);
-			//if(s_iterI == subjectMap.end()) cerr<<"Couldn't find subject!"<<endl;
-	          	s_iterI->second.insertMap(curr_g, yhat, datatype);
-	          	//s_iterI->second.removeNAgenes(curr_g,datatype);
+	          	s_iterI->second.insertMap(tag, yhat, datatype);
 		        countNA++;
-      	 	  }
-	       Cv.clear();
-	       wdist_vec.clear();
-	     }
+      	 	}
+	    	Cv.clear();
+	    	wdist_vec.clear();
+	    }
              x_j.clear();
 	     MAT_new.clear();
    }
@@ -528,9 +639,9 @@ vector<double> extractGeneVec(int datatype, string g, vector<string> sub, map<st
      vector<double> vec;
 
      for(int i = 0; i<sub.size(); i++){
-	      string curr_s = sub.at(i);
+	string curr_s = sub.at(i);
         s_iter = subjectMap.find(curr_s);
-	      g_iter = s_iter->second.geneMap.find(g);
+	g_iter = s_iter->second.geneMap.find(g);
         double dd = g_iter->second.getReadings(datatype);
         vec.push_back(dd);
      }
@@ -561,7 +672,7 @@ void determineCandidate(int max_p, vector<string> genes, vector<vector<double> >
 	               pw_x = MAT.at(j);
 	               collect_g.push_back(pw_g);
 	               curr_select.push_back(j);
-		             double dd = calEdist(curr_x, pw_x);
+		       double dd = calEdist(curr_x, pw_x);
 	               dist_vec.push_back(dd);
 	             }
     	       } 
@@ -583,7 +694,6 @@ void determineCandidate(int max_p, vector<string> genes, vector<vector<double> >
     	        }
     	        MAP[SETg] = MAT_new;		
     	        set<string> genesleft = getNonOverlap(genesSET, genes);
-    	        //if(genesleft.size() != (genes.size()-selected.size())) cerr<<"Something wrong with size!"<<endl;
     	        if(genesleft.size()<max_p) iterate = false;
                   if (!iterate){
     	              MAT_new.clear();
@@ -604,8 +714,6 @@ void determineCandidate(int max_p, vector<string> genes, vector<vector<double> >
     	           MAT_new.clear();
     	    	}
     }
-    //cerr<< "There are a total of " << MAP.size()<< " blocks of genes of size "<<max_p<<" created."<<endl;
-   
 }
 
 
@@ -699,7 +807,7 @@ double imputeMV(int indexNA,vector<double> weightedD, int K, vector<vector<doubl
 
 
 
-vector<string> readFile(string myFile,map<string, set<string> > &subtypeMap, map<string, subjectClass> &subjectMap,Input_t &UserInput,set<string> sub,  int dataType){
+vector<string> readFile(string myFile, map<string, set<string> > &subtypeMap, map<string, subjectClass> &subjectMap,Input_t &UserInput,set<string> sub,  int dataType){
 
     ifstream file;
     file.open(myFile.c_str(), ios::in);
@@ -711,11 +819,11 @@ vector<string> readFile(string myFile,map<string, set<string> > &subtypeMap, map
     
     bool logtrans = false;
     string datatype;
-    if(dataType==1) {datatype ="DNA"; if(UserInput.log_DNA) logtrans=true; }
-    if(dataType==2) {datatype ="RNA"; if(UserInput.log_RNA) logtrans=true;}
-    if(dataType==3) {datatype ="Proteome"; if(UserInput.log_PROT) logtrans=true;}
+    if(dataType==1) {datatype ="Z"; if(UserInput.log_Z) logtrans=true;}
+    if(dataType==2) {datatype ="Y"; if(UserInput.log_Y) logtrans=true;}
+    if(dataType==3) {datatype ="X"; if(UserInput.log_X) logtrans=true;}
 
-    string line;
+    string line, tag, DT;
     bool skipHeader = true;
     int ctr = 1;
     vector<string> SubjectIds;
@@ -726,81 +834,81 @@ vector<string> readFile(string myFile,map<string, set<string> > &subtypeMap, map
     map<string, set<string> >::iterator iter;
     int counter=0;
     while(!file.eof()){
-        getline(file, line);  //reading in whole line chopping off '\n'
+        safeGetline(file, line);  
         if(line=="") {break;}
         if(skipHeader){
             skipHeader = false;
             v = stringSplit(line, '\t');
             SubjectIds = v;
-	          SubjectIds.erase(SubjectIds.begin());
+	    SubjectIds.erase(SubjectIds.begin());
             subjectClass *curSub = NULL;
             
             for(int i=0; i !=SubjectIds.size(); i++){
                 string subject = SubjectIds.at(i);
-            		//only insert into subjectMap if subject has a subtype
-            		if(contains(subject, &sub)){
-	                 set_sub.insert(subject);
-                   m_iter = subjectMap.find(subject);
-                   if(m_iter==subjectMap.end()){
-                       //create new key
-                       curSub = new subjectClass(subject);
-                       subjectMap[subject] = *curSub;
-                       delete curSub;  
-                   }
-		            }
-		            if(!(contains(subject, &sub))) cerr<<"error with "<<subject<<endl;
-            }
-      	    set<string>::iterator it;
-      	    vector<string>::iterator it2;
-      	    for(iter=subtypeMap.begin(); iter!=subtypeMap.end(); iter++){
-      		      v_subtypes.push_back(iter->first);   // collection of strings of subtypes
-      		      set<string> tmp_mem = iter->second;
-	              int n_type =0;
-	              for(it = tmp_mem.begin(); it!=tmp_mem.end(); it++){
-		                if(contains(*it, &set_sub)){
-			                  v_subjects.push_back(*it);  // collection of members ordered by subtype
-			                  it2 = find(SubjectIds.begin(), SubjectIds.end(), *it);
-			                  int cid = distance(SubjectIds.begin(), it2);   //index of subject in original data
-			                  v_index.push_back(cid);
-		                    n_type++;  
-		                  }
-		            }
-		            v_size.push_back(n_type);	 // number of subjects in each subtype
-            }
-            continue;   
-        }// close header loop
-
+            	//only insert into subjectMap if subject has a subtype
+            	if(contains(subject, &sub)){
+	            set_sub.insert(subject);
+                    m_iter = subjectMap.find(subject);
+                    if(m_iter==subjectMap.end()){
+                           //create new key
+                           curSub = new subjectClass(subject);
+                           subjectMap[subject] = *curSub;
+                           delete curSub;  
+                     }
+	        }
+             }
+      	     set<string>::iterator it;
+      	     vector<string>::iterator it2;
+      	     for(iter=subtypeMap.begin(); iter!=subtypeMap.end(); iter++){
+      			v_subtypes.push_back(iter->first);   // collection of strings of subtypes
+      			set<string> tmp_mem = iter->second;
+	        	int n_type =0;
+	        	for(it = tmp_mem.begin(); it!=tmp_mem.end(); it++){
+		    	    if(contains(*it, &set_sub)){
+			 	v_subjects.push_back(*it);  // collection of members ordered by subtype
+			 	it2 = find(SubjectIds.begin(), SubjectIds.end(), *it);
+			 	int cid = distance(SubjectIds.begin(), it2);   //index of subject in original data
+			 	v_index.push_back(cid);
+		         	n_type++;  
+		     	    }
+		        }
+		        v_size.push_back(n_type);	 // number of subjects in each subtype
+      	      }
+              continue;   
+     	}// close skipheader loop
         v.clear();
         v = stringSplit(line, '\t');
         string curr_g = v.at(0);
         bool keep = true;       
-        if(dataType==1) cerr << "Reading in DNA..........."<<ctr<<"\r";
-        if(dataType==2) cerr << "Reading in RNA..........."<<ctr<<"\r";
-        if(dataType==3) cerr << "Reading in Protein........."<<ctr<<"\r";     
+        if(dataType==1) {cerr << "Reading in input data Z..........."<<ctr<<"\r";DT = "Z";}
+        if(dataType==2) {cerr << "Reading in input data Y..........."<<ctr<<"\r";DT = "Y";}
+        if(dataType==3) {cerr << "Reading in input data X........."<<ctr<<"\r";DT = "X";}     
 
       	int start_pos=0;
       	int end_pos=0;
       	for(int k=0; k<v_size.size(); k++){
   	    if(k==0) end_pos=0;
   	    else start_pos = end_pos;
-  	    end_pos = start_pos+v_size.at(k);
+  	    end_pos = start_pos + v_size.at(k);
   	    int countNA=0;
-        for(int j=start_pos; j<end_pos; j++){
-            int h = v_index.at(j);
-            string dat_str = v.at(h+1);
-            if(!logtrans) if(dat_str=="NA"|dat_str=="") countNA++;
-  		      if(logtrans) if(dat_str=="NA"|dat_str==""|dat_str=="0") countNA++;
+            for(int j=start_pos; j<end_pos; j++){
+                int h = v_index.at(j);
+                string dat_str = v.at(h+1);
+                if(!logtrans) if(dat_str=="NA"|dat_str=="") countNA++;
+  		if(logtrans) if(dat_str=="NA"|dat_str==""|dat_str=="0") countNA++;
   	    }
-	      double tmp_p = (v_size.at(k) - countNA)/(double) v_size.at(k);
-	      int diff = v_size.at(k) - countNA;
-	     if((diff<UserInput.minobs)| (tmp_p<UserInput.minprop)) keep = false;	
-	  }   
+	    double tmp_p = (v_size.at(k) - countNA)/(double) v_size.at(k);
+	    int diff = v_size.at(k) - countNA;
+	    if((diff<UserInput.minobs)| (tmp_p<UserInput.minprop)) keep = false;	
+	 }   
 	
-	  if(keep){
-  	   geneset.push_back(curr_g);
+	 if(keep){
+
+	   tag = curr_g+"...dat"+DT;
+  	   geneset.push_back(tag);
   	   int start_pos=0;
   	   int end_pos=0;
-       bool nainsert = true;
+           bool nainsert = true;
   	   for(int k=0; k<v_size.size(); k++){
   	      if(k==0) end_pos=0;
   	      else start_pos=end_pos;
@@ -808,96 +916,146 @@ vector<string> readFile(string myFile,map<string, set<string> > &subtypeMap, map
   	      for(int j=start_pos; j<end_pos; j++){
   		      int h= v_index.at(j);
   		      m_iter = subjectMap.find(SubjectIds.at(h));
-  	        double d=0;
+  	              double d=0;
   		      double d_new =0;
   		      if(m_iter!=subjectMap.end()){
-  		        string dat_str = v.at(h+1);
-  		        if(dat_str=="NA"|dat_str==""){
-  			          m_iter->second.insertNAgenes(curr_g, dataType);
-  			          d_new = NA_VAL;
-  			          if(nainsert) {cid_missing.push_back(counter); nainsert=false;}
-  		        }
-              else{
-                  d=atof(dat_str.c_str()); 
-  			          if(logtrans){
-                      if(d==0){
-  				                d_new=NA_VAL;
-  				                m_iter->second.insertNAgenes(curr_g,dataType);
-  			 	                 if(nainsert){cid_missing.push_back(counter); nainsert=false;}
-  			              }
-  			              if(d!=0) d_new =(log(d)/log(2));  
-    		          }
-  			          if(!logtrans) d_new = d;   
-              }
-              m_iter->second.insertMap(curr_g,d_new,dataType);                           
-            } 
-  	      }
-  	    } //close for loop
-        counter++;
-      }// close keep loop   
-      ctr++;
+  		          string dat_str = v.at(h+1);
+  		          if(dat_str=="NA"|dat_str==""){
+  			       m_iter->second.insertNAgenes(tag, dataType);
+  			       d_new = NA_VAL;
+  			       if(nainsert) {cid_missing.push_back(counter); nainsert=false;}
+  		          }
+                          else{
+                               d=atof(dat_str.c_str()); 
+  			       if(logtrans){
+                      		  if(d==0){
+  				    d_new=NA_VAL;
+  				    m_iter->second.insertNAgenes(tag,dataType);
+  			 	    if(nainsert){cid_missing.push_back(counter); nainsert=false;}
+  			           }
+  			           if(d!=0) d_new =(log(d)/log(2));  
+    		                }
+  			        if(!logtrans) d_new = d;   
+            	           }
+                           m_iter->second.insertMap(tag,d_new,dataType);                           
+                       } 
+  	          }
+  	  } //close for loop
+          counter++;
+        }// close keep loop   
+        ctr++;
     }//close while loop
-    if(dataType==1) UserInput.cid_dna = cid_missing;
-    if(dataType==2) UserInput.cid_rna = cid_missing;
-    if(dataType==3) UserInput.cid_prot = cid_missing;
+    if(dataType==1) UserInput.cid_Z = cid_missing;
+    if(dataType==2) UserInput.cid_Y = cid_missing;
+    if(dataType==3) UserInput.cid_X = cid_missing;
     return geneset;
 }
 
 
 
-set<string> readPPINetwork(string file, map<string, set<string> >&PPIMap, vector<string> prot_g){
+set<string> readwithinNetwork(string file, map<string, set<string> >&WITHINMap, map<string, int> &InteractMap,vector<string>X_g, set<string> sub, map<string, subjectClass>&subjectMap){
 
     set<string> ret;
-
     ifstream myFile;
     myFile.open(file.c_str(), ios::in);
-
     if(!myFile.is_open()){
-	      cerr<<"Error! Unable to open file...\n";
-	      exit(1);
+	 cerr<<"Error! Unable to open file...\n";
+	 exit(1);
     }
-
     set<string> members;
-    vector<string> v;
-    string line;
+    vector<string> v, subjects;
+    string line, type, Dir;
+    string tagA, tagB;
+    int counter=0, ctr=0;
     bool skipHeader=true;
     map<string, set<string> >::iterator m_iter;
+    set<string>::iterator it;
 
+    set<string> allS = retrieveKeys(subjectMap);
+    set<string> commonS = IntersectSet(allS, sub);
     while(!myFile.eof()){
-    	getline(myFile, line);
+    	safeGetline(myFile, line);
     	if(line=="") break;
     	if(skipHeader){
     	    skipHeader=false;
     	    continue;
-      }
-  	  v = stringSplit(line,'\t');
-      string geneA = v.at(0);
-      string geneB = v.at(1);
-  	  if(containsVec(geneA, &prot_g) & containsVec(geneB, &prot_g)){
-         m_iter = PPIMap.find(geneA);
-     	   if(m_iter == PPIMap.end()){
-  	        members.insert(geneB);
-  	        PPIMap[geneA] = members;
-  	        members.clear();
-  	      }
-          else m_iter->second.insert(geneB);
-          m_iter = PPIMap.find(geneB);
-          if(m_iter == PPIMap.end()){
-              members.insert(geneA);
-              PPIMap[geneB] = members;
-      	      members.clear();
-          }
-          else m_iter->second.insert(geneA);
-  	      string edge = geneA+"_prot_"+geneB+"_prot";
-  	      ret.insert(edge);
-       }
-    }
+      	}
+  	 v = stringSplit(line,'\t');
+         string geneA = v.at(0);
+         string geneB = v.at(1);
+	 tagA = geneA+"...datX";
+	 tagB = geneB+"...datX";
+      	 type = v.at(2); 
+	 if((type!="1") & (type!="-1"))  {cerr<<"Error! Entries in the third columns should only contain 1 or -1. Please try again\n"; exit(1);}
+  	 if(containsVec(tagA, &X_g) & containsVec(tagB, &X_g)){
+	    subjects = SetToVec(commonS);
+            double rho = checkCor(tagA, tagB, subjects, subjectMap);
 
-    string maxG = maximumG(PPIMap);
-    //cerr<<"Gene with the most interactors is "<<maxG<<endl;
-    //cerr<<"The size of the PPI-map with interactions in the data is " <<PPIMap.size()<<".\n"<<endl;
-    //cerr<<"Number of edges formed is: " << ret.size()<<endl;
+	    if(rho>=0) Dir = "1";
+	    if(rho==0) {Dir="0";ctr++;}	
+	    if(rho<0) Dir = "-1";
+	    if(Dir==type){
+               m_iter = WITHINMap.find(tagA);
+     	       if(m_iter == WITHINMap.end()){
+  	          members.insert(tagB);
+  	          WITHINMap[tagA] = members;
+  	          members.clear();
+  	       }
+               else m_iter->second.insert(tagB);
+               m_iter = WITHINMap.find(tagB);
+               if(m_iter == WITHINMap.end()){
+                 members.insert(tagA);
+                 WITHINMap[tagB] = members;
+      	         members.clear();
+               }
+               else m_iter->second.insert(tagA);
+  	       string edge = tagA+"___"+tagB;
+     	       InteractMap[edge] = stoi(type);
+  	       ret.insert(edge);
+	    }
+	    if(Dir!=type) counter++;
+         }
+    }
+    if(ctr>0) cerr<<ctr<<" zero correlations were calculated.\n"<<endl;
+
+    cerr<<counter<<" edges were removed due to incoherent direction of interaction specified in within-network and the correlation of nodes in the input data.\n"<<endl;
     return ret;
+}
+
+
+double checkCor(string tagA, string tagB, vector<string> sub, map<string, subjectClass>&subjectMap){
+
+    set<string>::iterator it;
+    vector<double> vecA, vecB;
+    vector<string> tmpstrA, tmpstrB;
+
+    tmpstrA = stringSplit2(tagA,"...");
+    tmpstrB = stringSplit2(tagB,"...");
+
+    string geneA = tmpstrA.at(0);
+    string dataTypeA =tmpstrA.at(1);
+
+    string geneB = tmpstrB.at(0);
+    string dataTypeB = tmpstrB.at(1);
+
+    int DTA, DTB;
+    if(dataTypeA=="datX") DTA =3;
+    if(dataTypeA=="datY") DTA = 2;
+    if(dataTypeA =="datZ") DTA = 1;
+
+    if(dataTypeB=="datX") DTB =3;
+    if(dataTypeB=="datY") DTB =2;
+    if(dataTypeB=="datZ") DTB =1;
+
+    vecA = extractGeneVec(DTA, tagA, sub, subjectMap);
+    vecB = extractGeneVec(DTB, tagB, sub, subjectMap);
+
+    double rho = calPearsonCor(vecA, vecB);
+    //if(rho<0)  ret="-1";
+    //if(rho>0)  ret="1";
+
+
+    return rho;
 }
 
 vector<string> getSubjects(int datatype, vector<string> genes, map<string, subjectClass> &subjectMap){
@@ -933,6 +1091,69 @@ void checkDuplicate(vector<vector<double> > &MAT){
 }
 
 
+void insertPrior(string Priorfile, map<string, subjectClass> &subjectMap){
+
+    set<string> ret;
+    ifstream myFile;
+    myFile.open(Priorfile.c_str(), ios::in);
+    
+    map<string, subjectClass>::iterator iter, iter2;
+
+    if(!myFile.is_open()){
+      	cerr<<"Error!! Unable to open file...\n";
+      	exit(1);
+    }
+
+    vector<string> v, headv;
+    string line;
+    bool skipHeader=true;
+    double pp;
+    while(!myFile.eof()){	
+      	safeGetline(myFile, line);
+      	if(line=="") break;
+      	if(skipHeader){
+	   headv = stringSplit2(line,"\t");
+	   headv.erase(headv.begin()); //remove first element
+      	   skipHeader=false;
+      	   continue;
+      	}
+      	v = stringSplit2(line,"\t");
+      	string sub = v.at(0);
+      	v.erase(v.begin());
+      	iter= subjectMap.find(sub);
+       	if(iter != subjectMap.end()){
+		for(int j=0; j<v.size(); j++){
+		    string tmpstr = v.at(j);
+		    string tmphead = headv.at(j);
+		    replace(tmphead.begin(), tmphead.end(), ' ', '_' );
+		    if((tmpstr!="") &(tmpstr!="NA")) pp =atof(tmpstr.c_str()); 
+		    if((tmpstr=="")|(tmpstr=="NA")) pp = NA_VAL;
+		    iter->second.insertPrior(tmphead, pp);
+		    //cerr<<headv.at(j)<<"\t"<<tmphead<<"\t"<<pp<<endl;
+		}
+	}
+    }
+    vector<string> to_rm;
+    bool prior_exist;
+    for(iter2=subjectMap.begin(); iter2!=subjectMap.end(); iter2++){
+	string currK = iter2->first; 
+	prior_exist = iter2->second.checkPrior();
+	if(!prior_exist) to_rm.push_back(currK);
+	//if(prior_exist){
+	//	vector<string> GRP = iter2->second.getGrp();
+	//	vector<double> PIE = iter2->second.getPriorVec();
+	//	for(int i=0; i<GRP.size(); i++) cerr<<GRP[i]<<"\t";
+	//	cerr<<endl;
+	//	for(int i=0; i<PIE.size(); i++) cerr<<PIE[i]<<"\t";
+	//	cerr<<endl;
+	//}
+    }
+    if(to_rm.size()>0){
+       for(int r=0; r<to_rm.size(); r++) subjectMap.erase(to_rm.at(r));
+       cerr<<to_rm.size()<<" samples were further removed as prior probabilities were not available.\n"<<endl;
+    }
+}
+
 set<string> readPATHWAY(string file, map<string, set<string> >&PATHmap, map<string, string> &PATHwayAnnot){
     set<string> ret;
     ifstream myFile;
@@ -949,26 +1170,26 @@ set<string> readPATHWAY(string file, map<string, set<string> >&PATHmap, map<stri
     vector<string> v;
     string line;
     bool skipHeader=true;
-
+    map<string, string>::iterator f_iter;
     while(!myFile.eof()){	
-      	getline(myFile, line);
+      	safeGetline(myFile, line);
       	if(line=="") break;
       	if(skipHeader){
       	   skipHeader=false;
       	   continue;
       	}
-      	v = stringSplit(line,'\t');
+      	v = stringSplit2(line,"\t");
       	string mem = v.at(0);
       	string path = v.at(1);
 	string annot = v.at(2);
       	iter= PATHmap.find(path);
-      	if(iter == PATHmap.end()){
+       	if(iter == PATHmap.end()){
       	    members.insert(mem);
       	    ret.insert(path);
       	    PATHmap[path] = members;
 	    PATHwayAnnot[path] = annot;
       	}
-        else iter->second.insert(mem);
+        else{iter->second.insert(mem);}
       	members.clear();
     }
     string maxPath = maximumG(PATHmap);
@@ -977,7 +1198,7 @@ set<string> readPATHWAY(string file, map<string, set<string> >&PATHmap, map<stri
 }
 
 
-set<string> readTFNetwork(bool interactType, string file, map<string, set<string> > &TFMap, map<string, int> &InteractMap, vector<string> target_g, vector<string> prot_g){
+set<string>  readbetweenNetwork(string file, map<string, set<string> > &BTWMap, map<string, int> &InteractMap, vector<string> target_g, vector<string> X_g, set<string> sub, map<string, subjectClass>&subjectMap){
     
     set<string> ret;
     ifstream myFile;
@@ -988,78 +1209,54 @@ set<string> readTFNetwork(bool interactType, string file, map<string, set<string
         exit(1);
     }
     set<string> members;
-    vector<string> v;
-    string line, type;
+    vector<string> v, subjects;
+    string line, type, Dir;
     bool skipHeader=true;
     map<string, set<string> >::iterator m_iter;
+    int counter=0;
 
+
+    set<string> allS = retrieveKeys(subjectMap);
+    set<string> commonS = IntersectSet(allS, sub);
     while(!myFile.eof()){
-        getline(myFile, line);
+        safeGetline(myFile, line);
         if(line=="") break;
         if(skipHeader){
             skipHeader=false;
             continue;
         }
-        v = stringSplit(line,'\t');
+        v = stringSplit2(line,"\t");
         string key = v.at(0);
         string mem = v.at(1);
-      	if(interactType) type = v.at(2); 
-      	if(containsVec(key, &prot_g) & containsVec(mem, &target_g)){
-              m_iter = TFMap.find(key);
-              if(m_iter == TFMap.end()){
-                  members.insert(mem);
-                  TFMap[key] = members;
-              }
-              if(m_iter!=TFMap.end())m_iter->second.insert(mem);
-      	      string edge = key+"_prot_"+mem+"_mrna";
-      	      if(interactType)InteractMap[edge] = stoi(type);
-      	      ret.insert(edge);
-              members.clear();
-      	}
+      	type = v.at(2); 
+	string tagK = key+"...datX";
+	string tagM = mem+"...datY";
+ 
+	if((type!="1") & (type!="-1"))  {cerr<<"Error! Entries in the third columns should only contain 1 or -1. Please try again\n";exit(1);}
+      	if(containsVec(tagK, &X_g) & containsVec(tagM, &target_g)){
+               
+              subjects = SetToVec(commonS);
+              double rho = checkCor(tagK, tagM, subjects, subjectMap);
+	      if(rho>0) Dir="1";
+	      if(rho<0) Dir="-1";
+
+              if(Dir==type){
+                m_iter = BTWMap.find(tagK);
+                if(m_iter == BTWMap.end()){
+                  members.insert(tagM);
+                  BTWMap[tagK] = members;
+                }
+                if(m_iter!=BTWMap.end()) m_iter->second.insert(tagM);
+      	        string edge = tagK+"___"+tagM;
+      	        InteractMap[edge] = stoi(type);
+      	        ret.insert(edge);
+                members.clear();
+	      }
+	      if(Dir!=type) counter++;
+	}
+
     }
-
-    string maxGene = maximumG(TFMap);
-    //cerr<<"Transcription factor with the largest number of targets in data is "<<maxGene<<endl;
-    //cerr<<"The size of the TF-map with interactions in the data is " <<TFMap.size()<<".\n"<<endl;
-    //cerr<<"Number of edges formed is: "<<ret.size()<<endl;
-    return ret;
-    
-}
-
-vector<string> StatusReport(map<string, subjectClass>&subjectMap, int datatype1, int datatype2){
-
-    string type1, type2;
-    if(datatype1 ==1) type1 = "DNA";
-    if(datatype1 ==2) type1 = "RNA";
-    if(datatype1 ==3) type1 = "Protein";
-    if(datatype1 ==4) type1 = "Methylation";
-    if(datatype2 ==1) type2 = "DNA";
-    if(datatype2 ==2) type2 = "RNA";
-    if(datatype2 ==3) type2 = "Protein";
-    if(datatype2 ==4) type2 = "Methylation";
-
-    cerr<<"reporting first 5 subjects with both "<< type1 << " and "<< type2<<"  data for checking...\n";
-    cerr<<"----------------------------------------------------------"<<endl;
-    int ctr=0;
-    vector<string> ret;
-    map<string, subjectClass>::iterator m_iter;
-    for(m_iter=subjectMap.begin(); m_iter!=subjectMap.end(); m_iter++){
-        set<string> setA = m_iter->second.getSet(datatype1);
-        set<string> setB = m_iter->second.getSet(datatype2);
-        set<string> commonG = IntersectSet(setA,setB);
-        if((!setA.empty())&(!setB.empty())){
-	        ret.push_back(m_iter->first);
-	        if(ctr<5){
-            	cerr<< "Subject: "<< m_iter->first <<endl;
-            	cerr<< setA.size()<<" number of genes in "<< type1<<" file\n";
-            	cerr<< setB.size()<<" number of genes in "<<type2<<" file\n";
-            	cerr<< commonG.size()<<" number of common genes in both data types.\n";
-            	cerr<<"----------------------------------------------------------"<<endl;	
-	        }
-	        ctr++;
-        }
-    }
-    cerr<<"\nThere are "<<ctr<<" number of subjects with both "<<type1<<" and "<<type2<<" data."<<endl; 
+    cerr<< counter<<" edges were removed due to incoherent direction of interation specified in between-network file and the correlation found between the nodes in the input data\n"<<endl;
     return ret;
 }
 
@@ -1117,15 +1314,16 @@ set<string> insertSubtypeMap(string subtypeFile, map<string, set<string> > &subt
      int counter = 0;
 
      while(!file.eof()){
-        	getline(file,line);
+        	safeGetline(file,line);
         	if(line=="") break;
         	if(skipHeader){
         	    skipHeader=false;
            	    continue;
           }
-         	v = stringSplit(line,'\t');
+         	v = stringSplit2(line,"\t");
         	string curr_s = v.at(0);
-        	string curr_t = v.at(1);
+		string curr_t = v.at(1);
+		replace(curr_t.begin(), curr_t.end(), ' ', '_' );
         	iter=subtypeMap.find(curr_t);
         	if(iter==subtypeMap.end()){
         	    sub.insert(curr_s);
@@ -1236,6 +1434,25 @@ double calCov(vector<double> x, vector<double> y){
    return ret;
 }
 
+double calPearsonCor(vector<double> x, vector<double> y){
+
+   double ret = 0.0, num= 0.0;
+   double denA=0.0, denB=0.0;
+   double mu_x = calMean(x);
+   double mu_y = calMean(y);
+   
+   for(int i=0; i<x.size(); i++){
+     if((x.at(i)!=NA_VAL) & (y.at(i)!=NA_VAL)){
+	num += ((x.at(i)-mu_x)*(y.at(i)-mu_y));
+     	denA += pow((x.at(i)-mu_x),2);
+     	denB += pow((y.at(i) -mu_y),2);
+     }
+   }
+   double den = sqrt(denA*denB);
+   ret = num/den;
+   return ret;
+}
+
 
 
 vector<double> Benjamini_Hochberg(vector<double> pvalue){
@@ -1298,7 +1515,7 @@ vector<double> Benjamini_Hochberg(vector<double> pvalue){
         iter = Pmap.find(tmp);
   	    double value = iter->second;
      	  p_adjust.push_back(value);
-        if(value<0) cerr<<"Neg Pval, pls check!"<<endl;
+        //if(value<0) cerr<<"Neg Pval, pls check!"<<endl;
     }
     return p_adjust; 
 }
@@ -1340,9 +1557,9 @@ set<string> identifyGenes(int mink, map<string, set<string> >&subtypeMap, map<st
      map<string, geneClass>::iterator g_iter;
 
      string data;
-     if(datatype==1) data = "DNA";
-     if(datatype==2) data = "RNA";
-     if(datatype==3) data = "Protein";
+     if(datatype==1) data = "Z";
+     if(datatype==2) data = "Y";
+     if(datatype==3) data = "X";
 
      for(s_iter=subtypeMap.begin(); s_iter!=subtypeMap.end(); s_iter++){
       	  members = s_iter->second;
@@ -1370,46 +1587,47 @@ set<string> identifyGenes(int mink, map<string, set<string> >&subtypeMap, map<st
         	 }
 	         if(satisfy) ret.insert(gene);
      }
-     cerr<<"In the "<<data<<" data, there are "<<ret.size()<<" number of genes with at least "<<mink <<" genes across each of the subtypes."<<endl;
+     cerr<<"In the dataframe "<<data<<", there are "<<ret.size()<<" features with at least "<<mink <<" non-missing samples across each of the subtypes."<<endl;
      return ret;
 }
 
 
 
 
-void outputData(vector<string> subjects,vector<string> genes, map<string, subjectClass> &subjectMap, int datatype){
+void outputData(vector<string> subjects,vector<string> genes,  map<string, subjectClass> &subjectMap, int datatype, string dir){
 
     map<string, geneClass>::iterator g_iter;
     map<string, subjectClass>::iterator iter;
+
     string LAB;
-    if(datatype==1)LAB = "DNA";
-    if(datatype==2)LAB = "RNA";
-    if(datatype==3)LAB = "PROT";
+    if(datatype==1)LAB = "dataZ";
+    if(datatype==2)LAB = "dataY";
+    if(datatype==3)LAB = "dataX";
    
-    ofstream outF("imputedData_"+LAB+".txt");
-    
+    ofstream outF(dir+"imputedData_"+LAB+".txt");
+    vector<string> GG;
     outF<<"Gene";
     for(int i=0; i<subjects.size(); i++) outF<<"\t"<<subjects.at(i);
     outF<<"\n";
-    
+
     for(int i=0; i<genes.size(); i++){	
       	string curr_g = genes.at(i);
-      	outF<<curr_g;
+        GG = stringSplit2(curr_g,"...");
+	outF<<GG.at(0);
       	for(int j=0; j<subjects.size(); j++){
       	   iter = subjectMap.find(subjects.at(j));
       	   g_iter = iter->second.geneMap.find(curr_g);
-      	   if(g_iter==(iter->second).geneMap.end()) cerr<<"no genemap"<<endl;
       	   double dd = g_iter->second.getReadings(datatype);
       	   if(dd==NA_VAL) outF<<"\t"<<"";
       	   if(dd!=NA_VAL) outF<<"\t"<<dd;
       	}
-	      outF<<"\n";
+	outF<<"\n";
     }
     outF.close();
 } 
 
 
-vector<double> fillPAMmap2(bool useDNA, bool interact,set<string> *Alledges,vector<string> *sub,map<string,int> *InteractMap, map<string, set<string> > *subtypeMap, map<string, subjectClass> *subjectMap, map<string, PAM_t> &PAMmap, map<string, vector<set<string> > > *FDneighborMap){
+vector<double> fillPAMmap2(bool useZ, string normby, set<string> *Alledges,vector<string> *sub,map<string,int> *InteractMap, map<string, set<string> > *subtypeMap, map<string, subjectClass> *subjectMap, map<string, PAM_t> &PAMmap, map<string, vector<set<string> > > *FDneighborMap, string dir){
      map<string, subjectClass>::iterator s_iter;
      map<string, PAM_t>::iterator p_iter, p_iter2;
      map<string, set<string> >::iterator iter;
@@ -1417,7 +1635,6 @@ vector<double> fillPAMmap2(bool useDNA, bool interact,set<string> *Alledges,vect
      map<string, vector<set<string> > >::iterator iter1, iter2;
      map<string, int>::iterator i_iter;
 
-     int count =0;
      vector<double> x_vec;
      double xbar, sigma;
      set<string> curr_grp, rna_set, prot_set, SETin;
@@ -1429,10 +1646,9 @@ vector<double> fillPAMmap2(bool useDNA, bool interact,set<string> *Alledges,vect
      vector<string> allkeys, strVec, members,features;
      int interactINT, countPos=0, countNeg=0;
 
-     ofstream outFile("Expressiondata_edges.txt");
+     ofstream outFile(dir+"Expressiondata_edges.txt");
      outFile<<"Edge";
-    
-     count =0;
+
      vector<set<string> > SubGroups;
      vector<int> GrpCount;
      set<string> grpSub;
@@ -1455,7 +1671,7 @@ vector<double> fillPAMmap2(bool useDNA, bool interact,set<string> *Alledges,vect
 
      vector<double> SS;
      vector<double> GRPmean;
-     string geneA, geneB, typeA,typeB;
+     string geneA, geneB, typeA,typeB, NodeA, NodeB;
      int datatypeA, datatypeB;
      vector<string> vec_g;
      double xA,xB,xC, rr;
@@ -1472,52 +1688,56 @@ vector<double> fillPAMmap2(bool useDNA, bool interact,set<string> *Alledges,vect
       	outFile<<curr_e;
       	i_iter = InteractMap->find(curr_e);
       	interactINT = i_iter->second;
-      
-      	vec_g = stringSplit(curr_e,'_');
-      	geneA = vec_g.at(0);
-      	typeA = vec_g.at(1);
-      	geneB = vec_g.at(2);
-      	typeB = vec_g.at(3);
+      	vec_g = stringSplit2(curr_e,"___");
+        NodeA = vec_g.at(0);
+	    NodeB = vec_g.at(1);
+      	geneA = stringSplit2(NodeA,"...").at(0);
+      	typeA =  stringSplit2(NodeA,"...").at(1);
+      	geneB =  stringSplit2(NodeB,"...").at(0);
+      	typeB =  stringSplit2(NodeB,"...").at(1);
       	p_iter->second.identifier = curr_e;
-      	p_iter->second.geneA = geneA;
-      	p_iter->second.geneB = geneB;
-      	if(typeB=="prot") datatype = "ppi";
-      	if(typeB=="mrna") datatype = "tf";
+      	p_iter->second.geneA = NodeA;
+      	p_iter->second.geneB = NodeB;
+      	if(typeB=="datX") datatype = "WITHIN";
+      	if(typeB=="datY") datatype = "BTW";
       	p_iter->second.dataT = datatype;
-      	if(datatype=="ppi"){datatypeA = 3; datatypeB=3;}
-      	if(datatype=="tf"){datatypeA = 3; datatypeB=2;}	
+      	if(datatype=="WITHIN"){datatypeA = 3; datatypeB=3;}
+      	if(datatype=="BTW"){datatypeA = 3; datatypeB=2;}
+         
       	for(int j=0; j<lab.size(); j++){
       	     curr_grp = SubGroups.at(j);
       	     vector<double> grp_x;
       	     for(it2 = curr_grp.begin(); it2!=curr_grp.end(); it2++){
             		 string curr_sub = *it2;
             		 s_iter = subjectMap->find(curr_sub);
-            		 g_iterA = s_iter->second.geneMap.find(geneA);
-            		 g_iterB = s_iter->second.geneMap.find(geneB);
+            		 g_iterA = s_iter->second.geneMap.find(NodeA);
+            		 g_iterB = s_iter->second.geneMap.find(NodeB);
             		 xA = g_iterA->second.getReadings(datatypeA);
             		 xB = g_iterB->second.getReadings(datatypeB);
-            		 if(datatype=="tf"){
-            		   if(useDNA) xC = g_iterB->second.getReadings(1);
-            		   if(interact){
-            		      if(interactINT== 1){
-                  			if(first){countPos++; first=false;}
-                  			if(!useDNA) rr = xA+xB;
-                  			if(useDNA) rr = xA+xB-xC;
-            		      }
-            		      if(interactINT== -1){
+			         xC = 0;
+            		 if(useZ & normby=="Y") xC = g_iterB->second.getReadings(1);
+            		 if(useZ & normby=="X") xC = g_iterA->second.getReadings(1);
+            		 if(datatype=="BTW"){
+            		   if(interactINT== 1){
+                  		if(first){countPos++; first=false;}
+                  		rr = xA+xB-xC;
+            		   }
+            		   if(interactINT== -1){
             		        if(first){countNeg++; first = false;}
-            		        if(!useDNA) rr = xA - xB;
-            		        if(useDNA) rr = xA+ (-1*(xB-xC));
-            		      }
+            		        if(!useZ) rr = xA - xB;
+            		        if(useZ & normby=="Y") rr = xA-xB+xC;
+            		        if(useZ & normby=="X") rr = (xA-xC)-xB;
             		   }
-            		   if(!interact){
-            		     if(!useDNA) rr =xA+xB;
-            		     if(useDNA) rr= xA+xB-xC;
+            		 }          		 
+            		 if(datatype=="WITHIN") {
+            		   if(interactINT== 1){
+                  		if(first){countPos++; first=false;}
+                  		rr = xA+xB;
             		   }
-            		 }
-            		 if(datatype=="ppi") {
-				if(first){countPos++; first=false;}
-				rr = xA+xB;
+            		   if(interactINT== -1){
+            		        if(first){countNeg++; first = false;}
+            		        rr = xA - xB;
+            		   }
 			 } 
             		 outFile<<"\t"<<rr;
             		 grp_x.push_back(rr);
@@ -1529,10 +1749,9 @@ vector<double> fillPAMmap2(bool useDNA, bool interact,set<string> *Alledges,vect
       	     (p_iter->second.classLab).push_back(lab[j]);
       	     grp_x.clear();
      	    }
-        	outFile<<endl;
-        
-        	p_iter->second.GRPsize=GrpCount;
-        	p_iter->second.xbar_i = calMean(GRPmean);
+            outFile<<endl;
+            p_iter->second.GRPsize=GrpCount;
+            p_iter->second.xbar_i = calMean(GRPmean);
 
           double sigma=0;
           int startpos=0;
@@ -1548,14 +1767,13 @@ vector<double> fillPAMmap2(bool useDNA, bool interact,set<string> *Alledges,vect
       	
       	p_iter->second.s_i = s_i;
       	SS.push_back(s_i);
-
-        count++;
-	      x_vec.clear();
+	    x_vec.clear();
         GRPmean.clear();
      }
 
      outFile.close();
-     if(interact) cerr<<"\nThere are a total of "<<countPos<<" positive-signed edges and "<<countNeg<<" negative-signed edges created.\n";
+
+     cerr<<"\nThere are a total of "<<countPos<<" positive-signed edges and "<<countNeg<<" negative-signed edges created.\n";
 
      double So = calMedian(SS);
      int sizeN = 0;
@@ -1573,130 +1791,131 @@ vector<double> fillPAMmap2(bool useDNA, bool interact,set<string> *Alledges,vect
     	    denom = mk *(Si + So); 
     	    double dik = num/denom;
     	    (p_iter->second.d_ik).push_back(dik);
-  	    }
+  	  }
      }
       // fill up Neighbor Info 
      double curr_dik;
      vector<double> maxTHRES;
      for(int j=0; j<lab.size(); j++) maxTHRES.push_back(0.0);
-     string NodeA,NodeB;
-     set<string> tf_N, ppi_N, Neigh_rna, Neigh_prot;
+     set<string> BTW_N, WITHIN_N, Neigh_Y, Neigh_X;
      vector<double> collect_dik;
-     vector<double> collect_dik_tf;
-     vector<double> collect_dik_ppi;
+     vector<double> collect_dik_BTW;
+     vector<double> collect_dik_WITHIN;
+     cerr<<"size of PAM map: "<<PAMmap.size()<<endl;
+     cerr<<"size of FD map: "<<FDneighborMap->size()<<endl;
+
      for(p_iter = PAMmap.begin(); p_iter!=PAMmap.end(); p_iter++){
-          curr_e = p_iter->first;
-    	    vec_g = stringSplit(curr_e,'_');
-    	    geneA = vec_g.at(0);
-    	    typeA = vec_g.at(1);
-    	    geneB = vec_g.at(2);
-    	    typeB = vec_g.at(3);
+            curr_e = p_iter->first;
+    	    vec_g = stringSplit2(curr_e,"___");
+            NodeA = vec_g.at(0);
+            NodeB = vec_g.at(1);
+
+    	    geneA = (stringSplit2(NodeA,"...")).at(0);
+    	    typeA = (stringSplit2(NodeA,"...")).at(1);
+    	    geneB = (stringSplit2(NodeB,"...")).at(0);
+    	    typeB = (stringSplit2(NodeB,"...")).at(1);
     	    datatype = p_iter->second.dataT;
-    	    if(datatype=="ppi"){datatypeA = 3; datatypeB=3;}
-    	    if(datatype=="tf"){datatypeA = 3; datatypeB=2;}
+    	    if(datatype=="WITHIN"){datatypeA = 3; datatypeB=3;}
+    	    if(datatype=="BTW"){datatypeA = 3; datatypeB=2;}
         
-           NodeA = geneA +"_"+ typeA;
-           NodeB = geneB+"_"+ typeB;
            iter1 = FDneighborMap->find(NodeA);
            iter2 = FDneighborMap->find(NodeB);
-           Neigh_rna = iter1->second.at(1);
-           Neigh_prot = iter1->second.at(2);
-           if(Neigh_rna.size()>0){
-               for(it = Neigh_rna.begin(); it!=Neigh_rna.end(); it++){
-                   string tmpstr = NodeA+"_"+*it+"_mrna";
-                   if(contains(tmpstr,Alledges)){
-                       tf_N.insert(tmpstr);
-                   }
+	   if(iter1 == (FDneighborMap->end())) cerr<<"No such Edge: "<<NodeA<<"\t"<<curr_e<<endl;
+	   if(iter2 == (FDneighborMap->end())) cerr<<"No such Edge: "<<NodeB<<"\t"<<curr_e<<endl;
+
+           if(iter1 != (FDneighborMap->end())){Neigh_Y = iter1->second.at(1);Neigh_X = iter1->second.at(2);}
+           if(Neigh_Y.size()>0){
+               for(it = Neigh_Y.begin(); it!=Neigh_Y.end(); it++){
+                   string tmpstr = NodeA+"___"+*it;
+                   if(contains(tmpstr,Alledges))BTW_N.insert(tmpstr);
                }
            }
-           if(Neigh_prot.size()>0){
-             for(it2 = Neigh_prot.begin(); it2!=Neigh_prot.end(); it2++){
-                 string tmpstr = NodeA+"_"+*it2+"_prot";
+           if(Neigh_X.size()>0){
+             for(it2 = Neigh_X.begin(); it2!=Neigh_X.end(); it2++){
+                 string tmpstr = NodeA+"___"+*it2;
                  string newstr = getEdge(tmpstr,Alledges);
-                 if(!newstr.empty()) ppi_N.insert(newstr);
+                 if(!newstr.empty()) WITHIN_N.insert(newstr);
              }
          }
-         Neigh_rna = iter2->second.at(1);
-         Neigh_prot = iter2->second.at(2);
-         if(Neigh_rna.size()>0){
-             for(it = Neigh_rna.begin(); it!=Neigh_rna.end(); it++){
-                 string tmpstr = NodeB+"_"+*it+"_mrna";
-                 if(contains(tmpstr,Alledges)) tf_N.insert(tmpstr);
+          if(iter2 != (FDneighborMap->end())){Neigh_Y = iter2->second.at(1);Neigh_X = iter2->second.at(2);}
+         if(Neigh_Y.size()>0){
+             for(it = Neigh_Y.begin(); it!=Neigh_Y.end(); it++){
+                 string tmpstr = NodeB+"___"+*it;
+                 if(contains(tmpstr,Alledges)) BTW_N.insert(tmpstr);
              }
          }
-         if(Neigh_prot.size()>0){
-             for(it2 = Neigh_prot.begin(); it2!=Neigh_prot.end(); it2++){
-                 string tmpstr = NodeB+"_"+*it2+"_prot";
+         if(Neigh_X.size()>0){
+             for(it2 = Neigh_X.begin(); it2!=Neigh_X.end(); it2++){
+                 string tmpstr = NodeB+"___"+*it2;
                  string newstr = getEdge(tmpstr,Alledges);
-                 if(!newstr.empty()) ppi_N.insert(newstr);
+                 if(!newstr.empty()) WITHIN_N.insert(newstr);
              }
          }
 
-         int NumTF = tf_N.size();
-         int NumPPI = ppi_N.size();
-         p_iter->second.NumFD_tf = NumTF;
-         p_iter->second.NumFD_ppi = NumPPI;
-         int totalNeighbors = tf_N.size() + ppi_N.size();
-
+         int NumBTW = BTW_N.size();
+         int NumWITHIN = WITHIN_N.size();
+         p_iter->second.NumFD_btw = NumBTW;
+         p_iter->second.NumFD_within = NumWITHIN;
+         int totalNeighbors = BTW_N.size() + WITHIN_N.size();
          for(int ss =0; ss<lab.size(); ss++){
               curr_dik = p_iter->second.d_ik.at(ss);
-              for(it = tf_N.begin(); it!=tf_N.end(); it++){
+              for(it = BTW_N.begin(); it!=BTW_N.end(); it++){
                   p_iter2 = PAMmap.find(*it);
                   collect_dik.push_back((p_iter2->second.d_ik)[ss]);
-                  collect_dik_tf.push_back((p_iter2->second.d_ik)[ss]);
+                  collect_dik_BTW.push_back((p_iter2->second.d_ik)[ss]);
               }
-              for(it2 = ppi_N.begin(); it2!=ppi_N.end(); it2++){
+              for(it2 = WITHIN_N.begin(); it2!=WITHIN_N.end(); it2++){
                   p_iter2 = PAMmap.find(*it2);
                   //if(p_iter2==PAMmap.end()) cerr<<"Edge not found in map!"<<endl;
                   collect_dik.push_back((p_iter2->second.d_ik)[ss]);
-                  collect_dik_ppi.push_back((p_iter2->second.d_ik)[ss]);
+                  collect_dik_WITHIN.push_back((p_iter2->second.d_ik)[ss]);
                }
                int NumAgree =0;
-               double TF_dikbar=0, PPI_dikbar=0;
-               if(collect_dik_tf.size()>0){
-                    TF_dikbar = calMean(collect_dik_tf);
-                    p_iter->second.FDtf_dik_bar.push_back(TF_dikbar);
-                    for(int h=0; h<collect_dik_tf.size(); h++){
-                        if(collect_dik_tf.at(h)<0 & curr_dik<0) NumAgree++;
-                        if(collect_dik_tf.at(h)>0 & curr_dik>0) NumAgree++;
+               double BTW_dikbar=0, WITHIN_dikbar=0;
+               if(collect_dik_BTW.size()>0){
+                    BTW_dikbar = calMean(collect_dik_BTW);
+                    p_iter->second.FDbtw_dik_bar.push_back(BTW_dikbar);
+                    for(int h=0; h<collect_dik_BTW.size(); h++){
+                        if(collect_dik_BTW.at(h)<0 & curr_dik<0) NumAgree++;
+                        if(collect_dik_BTW.at(h)>0 & curr_dik>0) NumAgree++;
                     }
                 }
-                if(collect_dik_ppi.size()>0){
-                    PPI_dikbar = calMean(collect_dik_ppi);
-                    p_iter->second.FDppi_dik_bar.push_back(PPI_dikbar);
-                    for(int h=0; h<collect_dik_ppi.size();h++){
-                        if(collect_dik_ppi.at(h)<0 & curr_dik<0) NumAgree++;
-                        if(collect_dik_ppi.at(h)>0 & curr_dik>0) NumAgree++;
+                if(collect_dik_WITHIN.size()>0){
+                    WITHIN_dikbar = calMean(collect_dik_WITHIN);
+                    p_iter->second.FDwithin_dik_bar.push_back(WITHIN_dikbar);
+                    for(int h=0; h<collect_dik_WITHIN.size();h++){
+                        if(collect_dik_WITHIN.at(h)<0 & curr_dik<0) NumAgree++;
+                        if(collect_dik_WITHIN.at(h)>0 & curr_dik>0) NumAgree++;
                     }
                 }
 
                 double tmp_prop = (double)NumAgree/(double)(totalNeighbors);
-	              double wtDikbar = (NumTF*TF_dikbar)+(NumPPI*PPI_dikbar);
-            		wtDikbar = wtDikbar/(NumTF+NumPPI);
-            		if((NumTF+NumPPI)==0) wtDikbar =0;
+	              double wtDikbar = (NumBTW*BTW_dikbar)+(NumWITHIN*WITHIN_dikbar);
+            		wtDikbar = wtDikbar/(NumBTW+NumWITHIN);
+            		if((NumBTW+NumWITHIN)==0) wtDikbar =0;
             		double phi_f = exp((tmp_prop-0.5)/0.2);
             		double phi = (2*phi_f)/(1+phi_f);
             		if(tmp_prop<0.5|(curr_dik*wtDikbar)<0) phi=0.0;
             		double dik_star = curr_dik + phi*wtDikbar;
-            		if(NumTF+NumPPI==0) dik_star = curr_dik;
-            		if(dik_star!=dik_star) cerr<<"dikstar problem "<< dik_star<<"\t"<<NumTF<<"\t"<<NumPPI<<endl;
+            		if(NumBTW+NumWITHIN==0) dik_star = curr_dik;
+            		//if(dik_star!=dik_star) cerr<<"dikstar problem "<< dik_star<<"\t"<<NumBTW<<"\t"<<NumWITHIN<<endl;
             		if(abs(dik_star)>maxTHRES.at(ss)) maxTHRES.at(ss) = abs(dik_star);
                 p_iter->second.prop_agree.push_back(tmp_prop);
 		            p_iter->second.dikstar_new.push_back(dik_star);
-                collect_dik_tf.clear();
-                collect_dik_ppi.clear();
+                collect_dik_BTW.clear();
+                collect_dik_WITHIN.clear();
                 collect_dik.clear();
             }//close subtypemap
-      	    tf_N.clear();
-      	    ppi_N.clear();
-      	    Neigh_rna.clear();
-      	    Neigh_prot.clear();
+      	    BTW_N.clear();
+      	    WITHIN_N.clear();
+      	    Neigh_Y.clear();
+      	    Neigh_X.clear();
       }//close tmp_pammap
       return maxTHRES;
 }
 
 
-vector<double> fillPAMmap(bool useDNA, bool interact ,set<string> *Alledges,vector<string> *sub,map<string, int> *InteractMap, map<string, set<string> > *subtypeMap, map<string, subjectClass> *subjectMap, map<string, PAM_t> &PAMmap, map<string, vector<set<string> > > *FDneighborMap){
+vector<double> fillPAMmap(bool useZ, string normby,set<string> *Alledges,vector<string> *sub,map<string, int> *InteractMap, map<string, set<string> > *subtypeMap, map<string, subjectClass> *subjectMap, map<string, PAM_t> &PAMmap, map<string, vector<set<string> > > *FDneighborMap){
 
     map<string, subjectClass>::iterator s_iter;
     map<string, PAM_t>::iterator p_iter, p_iter2;
@@ -1715,9 +1934,8 @@ vector<double> fillPAMmap(bool useDNA, bool interact ,set<string> *Alledges,vect
     set<string>::iterator it,it2;
     double maxDij;
     vector<string> allkeys, strVec, members,features;
-    int interactINT;
+    int interactINT, countPos=0, countNeg=0;
     
-    count =0;
     vector<set<string> > SubGroups;
     vector<int> GrpCount;
     set<string> grpSub;
@@ -1738,12 +1956,13 @@ vector<double> fillPAMmap(bool useDNA, bool interact ,set<string> *Alledges,vect
     
     vector<double> SS;
     vector<double> GRPmean;
-    string geneA, geneB, typeA,typeB;
+    string geneA, geneB, typeA,typeB, NodeA, NodeB;
     int datatypeA, datatypeB;
     vector<string> vec_g;
     double xA,xB,xC,rr;
     
     for(it = Alledges->begin(); it != Alledges->end(); it++){
+	bool first = true;
         curr_e = *it;
         PAM_t *pam_struct = new PAM_t();
         PAMmap[curr_e] = *pam_struct;
@@ -1753,50 +1972,59 @@ vector<double> fillPAMmap(bool useDNA, bool interact ,set<string> *Alledges,vect
       	i_iter = InteractMap->find(curr_e);
       	interactINT = i_iter->second;
         
-        vec_g = stringSplit(curr_e,'_');
-        geneA = vec_g.at(0);
-        typeA = vec_g.at(1);
-        geneB = vec_g.at(2);
-        typeB = vec_g.at(3);
+        vec_g = stringSplit2(curr_e,"___");
+            NodeA = vec_g.at(0);
+            NodeB = vec_g.at(1);
+    	    geneA = (stringSplit2(NodeA,"...")).at(0);
+    	    typeA = (stringSplit2(NodeA,"...")).at(1);
+    	    geneB = (stringSplit2(NodeB,"...")).at(0);
+    	    typeB = (stringSplit2(NodeB,"...")).at(1);
         p_iter->second.identifier = curr_e;
-        p_iter->second.geneA = geneA;
-        p_iter->second.geneB = geneB;
-        if(typeA!="prot") cerr<<"Something wrong!"<<endl;
-        if(typeB=="prot") datatype = "ppi";
-        if(typeB=="mrna") datatype = "tf";
+        p_iter->second.geneA = NodeA;
+        p_iter->second.geneB = NodeB;
+        //cerr<<"typeB: "<<typeB<<endl;
+        if(typeB=="datX") datatype = "WITHIN";
+        if(typeB=="datY") datatype = "BTW";
         p_iter->second.dataT = datatype;
-        if(datatype=="ppi"){datatypeA = 3; datatypeB=3;}
-        if(datatype=="tf"){datatypeA = 3; datatypeB=2;}
+        if(datatype=="WITHIN"){datatypeA = 3; datatypeB=3;}
+        if(datatype=="BTW"){datatypeA = 3; datatypeB=2;}
         for(int j=0; j<lab.size(); j++){
             curr_grp = SubGroups.at(j);
             vector<double> grp_x;
             for(it2 = curr_grp.begin(); it2!=curr_grp.end(); it2++){
                 string curr_sub = *it2;
                 s_iter = subjectMap->find(curr_sub);
-                g_iterA = s_iter->second.geneMap.find(geneA);
-                g_iterB = s_iter->second.geneMap.find(geneB);
+                g_iterA = s_iter->second.geneMap.find(NodeA);
+                g_iterB = s_iter->second.geneMap.find(NodeB);
                 xA = g_iterA->second.getReadings(datatypeA);
                 xB = g_iterB->second.getReadings(datatypeB);
-		            if(datatype=="tf"){
-              		   if(useDNA) xC = g_iterB->second.getReadings(1);
-              		   if(interact){
-              		      if(interactINT ==1){
-                      			if(!useDNA) rr = xA+xB;	
-                      			if(useDNA) rr = xA+xB-xC;
-              		      }
-              		      if(interactINT == -1){
-                      			if(!useDNA) rr=xA-xB;
-                      			if(useDNA) rr = xA + (-1*(xB-xC));
-              		      }
-              		   }
-              		   if(!interact){
-              		      if(!useDNA) rr = xA+xB;
-              		      if(useDNA) rr = xA+xB-xC;
-              		   }
-              	}
-              	if(datatype=="ppi") rr = xA+xB;
-                grp_x.push_back(rr);
-                x_vec.push_back(rr);
+		xC = 0;
+            	if(useZ & normby=="Y") xC = g_iterB->second.getReadings(1);
+            	if(useZ & normby=="X") xC = g_iterA->second.getReadings(1);
+            	if(datatype=="BTW"){
+            		   if(interactINT== 1){
+                  		if(first){countPos++; first=false;}
+                  		rr = xA+xB-xC;
+            		   }
+            		   if(interactINT== -1){
+            		        if(first){countNeg++; first = false;}
+            		        if(!useZ) rr = xA - xB;
+            		        if(useZ & normby=="Y") rr = xA-xB+xC;
+            		        if(useZ & normby=="X") rr = (xA-xC)-xB;
+            		   }
+            	}          		 
+            	if(datatype=="WITHIN") {
+            		   if(interactINT== 1){
+                  		if(first){countPos++; first=false;}
+                  		rr = xA+xB;
+            		   }
+            		   if(interactINT== -1){
+            		        if(first){countNeg++; first = false;}
+            		        rr = xA - xB;
+            		   }
+		}                
+		 grp_x.push_back(rr);
+                 x_vec.push_back(rr);
             }
             double grp_mu = calMean(grp_x);
             GRPmean.push_back(grp_mu);
@@ -1849,120 +2077,118 @@ vector<double> fillPAMmap(bool useDNA, bool interact ,set<string> *Alledges,vect
     double curr_dik;
     vector<double> maxTHRES; 
     for(int j=0; j<lab.size(); j++) maxTHRES.push_back(0.0);
-    string NodeA,NodeB;
-    set<string> tf_N, ppi_N, Neigh_rna, Neigh_prot;
+    set<string> BTW_N, WITHIN_N, Neigh_Y, Neigh_X;
     vector<double> collect_dik;
-    vector<double> collect_dik_tf;
-    vector<double> collect_dik_ppi;
+    vector<double> collect_dik_BTW;
+    vector<double> collect_dik_WITHIN;
     for(p_iter = PAMmap.begin(); p_iter!=PAMmap.end(); p_iter++){
         curr_e = p_iter->first;
-        vec_g = stringSplit(curr_e,'_');
-        geneA = vec_g.at(0);
-        typeA = vec_g.at(1);
-        geneB = vec_g.at(2);
-        typeB = vec_g.at(3);
+        vec_g = stringSplit2(curr_e,"___");
+           NodeA = vec_g.at(0);
+            NodeB = vec_g.at(1);
+    	    geneA = (stringSplit2(NodeA,"...")).at(0);
+    	    typeA = (stringSplit2(NodeA,"...")).at(1);
+    	    geneB = (stringSplit2(NodeB,"...")).at(0);
+    	    typeB = (stringSplit2(NodeB,"...")).at(1);
         datatype = p_iter->second.dataT;
-        if(datatype=="ppi"){datatypeA = 3; datatypeB=3;}
-        if(datatype=="tf"){datatypeA = 3; datatypeB=2;}
+        if(datatype=="WITHIN"){datatypeA = 3; datatypeB=3;}
+        if(datatype=="BTW"){datatypeA = 3; datatypeB=2;}
                 
-        NodeA = geneA +"_"+ typeA;
-        NodeB = geneB+"_"+ typeB;
         iter1 = FDneighborMap->find(NodeA);
         iter2 = FDneighborMap->find(NodeB);
-        Neigh_rna = iter1->second.at(1);
-        Neigh_prot = iter1->second.at(2);
-        if(Neigh_rna.size()>0){
-            for(it = Neigh_rna.begin(); it!=Neigh_rna.end(); it++){
-                string tmpstr = NodeA+"_"+*it+"_mrna";
+        Neigh_Y = iter1->second.at(1);
+        Neigh_X = iter1->second.at(2);
+        if(Neigh_Y.size()>0){
+            for(it = Neigh_Y.begin(); it!=Neigh_Y.end(); it++){
+                string tmpstr = NodeA+"___"+*it;
                 if(contains(tmpstr,Alledges)){
-                    tf_N.insert(tmpstr);  
+                    BTW_N.insert(tmpstr);  
                 }
             }
         }
-        if(Neigh_prot.size()>0){
-            for(it2 = Neigh_prot.begin(); it2!=Neigh_prot.end(); it2++){
-                string tmpstr = NodeA+"_"+*it2+"_prot";
+        if(Neigh_X.size()>0){
+            for(it2 = Neigh_X.begin(); it2!=Neigh_X.end(); it2++){
+                string tmpstr = NodeA+"___"+*it2;
                 string newstr = getEdge(tmpstr,Alledges);
                 if(!newstr.empty()){
-                    ppi_N.insert(newstr);
+                    WITHIN_N.insert(newstr);
                 }
             }
         }
-        Neigh_rna = iter2->second.at(1);
-        Neigh_prot = iter2->second.at(2);
-        if(Neigh_rna.size()>0){
-            for(it = Neigh_rna.begin(); it!=Neigh_rna.end(); it++){
-                string tmpstr = NodeB+"_"+*it+"_mrna";
-                if(contains(tmpstr,Alledges)) tf_N.insert(tmpstr);
+        Neigh_Y = iter2->second.at(1);
+        Neigh_X = iter2->second.at(2);
+        if(Neigh_Y.size()>0){
+            for(it = Neigh_Y.begin(); it!=Neigh_Y.end(); it++){
+                string tmpstr = NodeB+"___"+*it;
+                if(contains(tmpstr,Alledges)) BTW_N.insert(tmpstr);
             }
         }
-        if(Neigh_prot.size()>0){
-            for(it2 = Neigh_prot.begin(); it2!=Neigh_prot.end(); it2++){
-                string tmpstr = NodeB+"_"+*it2+"_prot";
+        if(Neigh_X.size()>0){
+            for(it2 = Neigh_X.begin(); it2!=Neigh_X.end(); it2++){
+                string tmpstr = NodeB+"___"+*it2;
                 string newstr = getEdge(tmpstr,Alledges);
-                if(!newstr.empty()) ppi_N.insert(newstr);
+                if(!newstr.empty()) WITHIN_N.insert(newstr);
             }
         }
-        int NumTF = tf_N.size();
-        int NumPPI = ppi_N.size();
-        p_iter->second.NumFD_tf = NumTF;
-        p_iter->second.NumFD_ppi = NumPPI;
-        int totalNeighbors = tf_N.size() + ppi_N.size();
+        int NumBTW = BTW_N.size();
+        int NumWITHIN = WITHIN_N.size();
+        p_iter->second.NumFD_btw = NumBTW;
+        p_iter->second.NumFD_within = NumWITHIN;
+        int totalNeighbors = BTW_N.size() + WITHIN_N.size();
         
         for(int ss =0; ss<lab.size(); ss++){
             curr_dik = p_iter->second.d_ik.at(ss);
-            for(it = tf_N.begin(); it!=tf_N.end(); it++){
+            for(it = BTW_N.begin(); it!=BTW_N.end(); it++){
                 p_iter2 = PAMmap.find(*it);
                 collect_dik.push_back((p_iter2->second.d_ik)[ss]);
-                collect_dik_tf.push_back((p_iter2->second.d_ik)[ss]);
+                collect_dik_BTW.push_back((p_iter2->second.d_ik)[ss]);
             }
-            for(it2 = ppi_N.begin(); it2!=ppi_N.end(); it2++){
+            for(it2 = WITHIN_N.begin(); it2!=WITHIN_N.end(); it2++){
                 p_iter2 = PAMmap.find(*it2);
                 collect_dik.push_back((p_iter2->second.d_ik)[ss]);
-                collect_dik_ppi.push_back((p_iter2->second.d_ik)[ss]);
+                collect_dik_WITHIN.push_back((p_iter2->second.d_ik)[ss]);
             }
             
             int NumAgree =0;
-            double TF_dikbar=0, PPI_dikbar=0;
-            if(collect_dik_tf.size()>0){
-                TF_dikbar = calMean(collect_dik_tf);
-                p_iter->second.FDtf_dik_bar.push_back(TF_dikbar);
-                for(int h=0; h<collect_dik_tf.size(); h++){
-                    if(collect_dik_tf.at(h)<0 & curr_dik<0) NumAgree++;
-                    if(collect_dik_tf.at(h)>0 & curr_dik>0) NumAgree++;
+            double BTW_dikbar=0, WITHIN_dikbar=0;
+            if(collect_dik_BTW.size()>0){
+                BTW_dikbar = calMean(collect_dik_BTW);
+                p_iter->second.FDbtw_dik_bar.push_back(BTW_dikbar);
+                for(int h=0; h<collect_dik_BTW.size(); h++){
+                    if(collect_dik_BTW.at(h)<0 & curr_dik<0) NumAgree++;
+                    if(collect_dik_BTW.at(h)>0 & curr_dik>0) NumAgree++;
                 }
             }
-            if(collect_dik_ppi.size()>0){
-                PPI_dikbar = calMean(collect_dik_ppi);
-                p_iter->second.FDppi_dik_bar.push_back(PPI_dikbar);
-                for(int h=0; h<collect_dik_ppi.size();h++){
-                    if(collect_dik_ppi.at(h)<0 & curr_dik<0) NumAgree++;
-                    if(collect_dik_ppi.at(h)>0 & curr_dik>0) NumAgree++;
+            if(collect_dik_WITHIN.size()>0){
+                WITHIN_dikbar = calMean(collect_dik_WITHIN);
+                p_iter->second.FDwithin_dik_bar.push_back(WITHIN_dikbar);
+                for(int h=0; h<collect_dik_WITHIN.size();h++){
+                    if(collect_dik_WITHIN.at(h)<0 & curr_dik<0) NumAgree++;
+                    if(collect_dik_WITHIN.at(h)>0 & curr_dik>0) NumAgree++;
                 }
             }
             
             double tmp_prop = (double)NumAgree/(double)(totalNeighbors);
-            double wtDikbar = (NumTF*TF_dikbar)+(NumPPI*PPI_dikbar);
-            wtDikbar = wtDikbar/(NumTF+NumPPI);
-            if((NumTF+NumPPI)==0) wtDikbar =0;
+            double wtDikbar = (NumBTW*BTW_dikbar)+(NumWITHIN*WITHIN_dikbar);
+            wtDikbar = wtDikbar/(NumBTW+NumWITHIN);
+            if((NumBTW+NumWITHIN)==0) wtDikbar =0;
             double phi_f = exp((tmp_prop-0.5)/0.2);
             double phi = (2*phi_f)/(1+phi_f);
             if(tmp_prop<0.5|(curr_dik*wtDikbar)<0) phi=0.0;
             double dik_star = curr_dik + phi*wtDikbar;
-            if(NumTF+NumPPI==0) dik_star = curr_dik;
-            //if(dik_star!=dik_star) cerr<<"dikstar problem "<< NumTF<<"\t"<<NumPPI<<endl;
+            if(NumBTW+NumWITHIN==0) dik_star = curr_dik;
             if(abs(dik_star)>maxTHRES.at(ss)) maxTHRES.at(ss) = abs(dik_star);
             p_iter->second.prop_agree.push_back(tmp_prop);
             p_iter->second.dikstar_new.push_back(dik_star);
-            collect_dik_tf.clear();
-            collect_dik_ppi.clear();
+            collect_dik_BTW.clear();
+            collect_dik_WITHIN.clear();
             collect_dik.clear();
         }//close subtypemap
         counter2++;
-        tf_N.clear();
-        ppi_N.clear();
-      	Neigh_rna.clear();
-      	Neigh_prot.clear();
+        BTW_N.clear();
+        WITHIN_N.clear();
+      	Neigh_Y.clear();
+      	Neigh_X.clear();
     }//close tmp_pammap
     return maxTHRES;
 }
@@ -1979,8 +2205,9 @@ int whichMax(vector<double> vec){
     return pos;
 }
 
-int whichMin(vector<double> vec){
+vector<int> whichMin(vector<double> vec){
     int pos=0;
+    vector<int> POS;
     double curr_min = vec.at(0);
     for(int i=0; i<vec.size(); i++){
       	if(vec.at(i)<curr_min){
@@ -1988,7 +2215,11 @@ int whichMin(vector<double> vec){
       	    curr_min = vec.at(i);
       	}
     }
-    return pos;
+    POS.push_back(pos);
+    for(int i=0; i<vec.size(); i++){
+      	if((vec.at(i)==curr_min) &(i!=pos)) POS.push_back(i);
+    }
+    return POS;
 }
 
 string findClass(string sub, map<string, set<string> > *MAP){
@@ -2043,122 +2274,141 @@ double calNewXbarik(PAM_t &pam_struct,double thres, int group, int type){
    return xik_new;
 }
 
+set<string> VecToSet(vector<string> VEC){
+	set<string> ret;
+	for(int i=0; i<VEC.size();i++) ret.insert(VEC.at(i));
+        return ret;
+}
 
+void CleanupMap(vector<string> subjects,map<string, set<string> > &subtypeMap){
 
-set<string> createNeighborMap(vector<string> *prot_genes, vector<string> *rna_genes, map<string, set<string> > *TFmap, map<string, set<string> > *TargetMap, map<string, set<string> > *PPImap, map<string, vector<set<string> > >&FDNeighborMap){
+     
+     map<string, set<string> >::iterator iter;
+     set<string> members, commonMem;
+     set<string> subjectsnew = VecToSet(subjects);
+     string grp;
+     for(iter = subtypeMap.begin(); iter!=subtypeMap.end(); iter++){
+          grp = iter->first;
+	  members = iter->second;
+	  commonMem = IntersectSet(members, subjectsnew);
+          iter->second = commonMem;
+     }
+}
 
-     map<string, set<string> >::iterator tf_iter, ppi_iter, target_iter;
-     set<string> gene_set,rna_targets,prot_tf,prot_interact;
-     set<string> parentNodes, singletons, RNA_genes,PROT_genes;
-     string curr_g, curr_key;
+set<string> createNeighborMap(string dir, vector<string> *X_g, vector<string> *Y_g, map<string, set<string> > *BTWmap, map<string, set<string> > *TargetMap, map<string, set<string> > *WITHINmap, map<string, vector<set<string> > >&FDNeighborMap){
+
+     map<string, set<string> >::iterator BTW_iter, WITHIN_iter, target_iter;
+     set<string> gene_set,Y_btw,X_btw,X_within;
+     set<string> parentNodes, singletons, setY,setX;
+     string curr_g;
      set<string>::iterator it, it2;
-     int num_rna, num_prot, curr_max=0;
-     int counter=0;
-     string maxNode;
+     int num_Y, num_X, curr_max=0;
+     string maxNode, genename;
      map<string, vector<set<string> > >::iterator iter;
      set<string> features;
      vector<set<string> > Neighbors;
 
-     for(int i=0; i<prot_genes->size(); i++) PROT_genes.insert(prot_genes->at(i));
-     for(int i=0; i<rna_genes->size(); i++) RNA_genes.insert(rna_genes->at(i));
+     for(int i=0; i< X_g->size(); i++) setX.insert(X_g->at(i));
+     for(int i=0; i< Y_g->size(); i++) setY.insert(Y_g->at(i));
 
-     //for rna, first degree neighbors are only TFs which are targeting the gene
-     for(int i =0; i<rna_genes->size(); i++){
-        curr_g = rna_genes->at(i);
-        curr_key = curr_g +"_mrna";
+     // in the map, element zero is the feature tag, element one is the FDneighbors from data Y (between) and element two is the FDneighbors from data X (within)
+    // cerr<<"Size of X_g: "<<X_g->size()<<"\t"<< "Size of Y_g: "<<Y_g->size()<<endl;
+
+     //for data Y, first degree neighbors are those that are targeted by data X and second element should be empty
+     for(int i =0; i< Y_g->size(); i++){
+        curr_g = Y_g->at(i);
         gene_set.insert(curr_g);
         Neighbors.push_back(gene_set);
-        // for rna, insert empty set into second element
-        Neighbors.push_back(rna_targets);
+        Neighbors.push_back(Y_btw); //empty
         target_iter = TargetMap->find(curr_g);
       	if(target_iter!=TargetMap->end()) parentNodes = target_iter->second;
-              prot_tf = IntersectSet(parentNodes, PROT_genes);
-              if(prot_tf.size()==0) singletons.insert(curr_key);
-              Neighbors.push_back(prot_tf);
-              if(prot_tf.size()>0) FDNeighborMap[curr_key] = Neighbors;
-              if(prot_tf.size()>curr_max){
-                  curr_max = prot_tf.size();
-                  maxNode = curr_key;
-              }
-
-              gene_set.clear();
-              prot_tf.clear();
-              Neighbors.clear();
+        X_btw = IntersectSet(parentNodes,setX);
+        if(X_btw.size()==0) singletons.insert(curr_g);
+        Neighbors.push_back(X_btw);
+        if(X_btw.size()>0) FDNeighborMap[curr_g] = Neighbors;
+        if(X_btw.size()>curr_max){
+             curr_max = X_btw.size();
+             maxNode = curr_g ;
         }
- 
-       counter=0;
-       //for protein, first degree neighbors are all possible RNA targets and PPI interactors
-       for(int i=0; i<prot_genes->size(); i++){
-          curr_g = prot_genes->at(i);
-          curr_key = curr_g +"_prot";
+
+        gene_set.clear();
+        X_btw.clear();
+        Neighbors.clear();
+     }
+
+     //for data X, first degree neighbors are all possible within X or between X and Y
+     for(int i=0; i< X_g->size(); i++){
+          curr_g = X_g->at(i);
           gene_set.insert(curr_g);
           Neighbors.push_back(gene_set);
-          tf_iter = TFmap->find(curr_g);
-          if(tf_iter!=TFmap->end()){
-              set<string> tmp_children = tf_iter->second;
-              rna_targets = IntersectSet(tmp_children, RNA_genes);
+          BTW_iter = BTWmap->find(curr_g);
+          if(BTW_iter!=BTWmap->end()){
+              set<string> tmp_children = BTW_iter->second;
+              Y_btw = IntersectSet(tmp_children, setY);
           }
-          Neighbors.push_back(rna_targets);	
-          ppi_iter = PPImap->find(curr_g);
-          if(ppi_iter!=PPImap->end()){
-               set<string> interact = ppi_iter->second;
-               prot_tf = IntersectSet(interact, PROT_genes);
+          Neighbors.push_back(Y_btw);	
+          WITHIN_iter = WITHINmap->find(curr_g);
+
+          if(WITHIN_iter!=WITHINmap->end()){
+               set<string> interact = WITHIN_iter->second;
+               X_within = IntersectSet(interact,setX);
           }
-          Neighbors.push_back(prot_tf);
-          if(rna_targets.size()==0 & prot_tf.size()==0) singletons.insert(curr_key);
-          if((rna_targets.size() + prot_tf.size())>0) FDNeighborMap[curr_key] = Neighbors;
-          if((rna_targets.size()+prot_tf.size())>curr_max){
-              curr_max = rna_targets.size()+prot_tf.size();
-              maxNode = curr_key;
+          Neighbors.push_back(X_within);
+          if(Y_btw.size()==0 & X_within.size()==0) singletons.insert(curr_g);
+          if((Y_btw.size() + X_within.size())>0) FDNeighborMap[curr_g] = Neighbors;
+          if((Y_btw.size()+X_within.size())>curr_max){
+              curr_max = Y_btw.size()+X_within.size();
+              maxNode = curr_g;
           }
           gene_set.clear();
-          prot_tf.clear();
-          rna_targets.clear();
+          X_within.clear();
+          Y_btw.clear();
           Neighbors.clear();
        }     
        iter = FDNeighborMap.find(maxNode);
-       num_rna = (iter->second).at(1).size();
-       num_prot = (iter->second).at(2).size();
-  
-  
+
+       num_Y = (iter->second).at(1).size();
+       num_X = (iter->second).at(2).size();
+ 
        cerr<<"Generating output for information on the first-degree neighbours of all features in the data...\n"<<endl;
-       cerr<<"\nThere is a total of "<<FDNeighborMap.size()<<" features with TF/PPI network interactions and "<<singletons.size()<<" features with no interactions and are removed."<<endl;
-       cerr<<maxNode<<" is the feature with the most first-degree neighbours, "<<num_rna<<" RNA targets and "<< num_prot<<" PROT tfs/interactors.\n"<<endl;
+       cerr<<"\nThere is a total of "<<FDNeighborMap.size()<<" features with between and/or within network interactions and "<<singletons.size()<<" features with no interactions and were removed."<<endl;
+       cerr<<maxNode<<" is the feature with the most first-degree neighbours, "<<num_Y<<" between- and "<< num_X<<" within-data interactions.\n"<<endl;
 
        //output the first degree neighbor data
-       ofstream outFile("Features_Neighbors.txt");
+       ofstream outFile(dir+"Features_Neighbors.txt");
        outFile<<"Feature\tGene\tType\tNeighbor_inData\tNumNeigh_inData"<<endl;
   
        string currF, currG, currT;
-       set<string> rna_set, prot_set;
-       vector<string> mem;
+       set<string> Y_set, X_set;
+       vector<string> mem, tt;
+
        for(iter = FDNeighborMap.begin(); iter!=FDNeighborMap.end(); iter++){
          currF = iter->first;
-	       features.insert(currF);
-         vector<string> tmpVec = stringSplit(currF,'_');
-         currG = tmpVec.at(0);
-         currT = tmpVec.at(1);
-         
-	       rna_set = (iter->second).at(1);
-         prot_set = (iter->second).at(2);
-         if(rna_set.size()>0){
-	          for(it = rna_set.begin(); it!=rna_set.end(); it++){
-        		  string tmp = *it+"_mrna";
-        		  mem.push_back(tmp);
-        	  }
-	        }
-      	 if(prot_set.size()>0){
-      	    for(it = prot_set.begin(); it!= prot_set.end(); it++){
-      		      string tmp = *it + "_prot";
+	 features.insert(currF);
+         vector<string> tmpVec = stringSplit2(currF,"...");
+         genename = tmpVec.at(0);
+         currT = tmpVec.at(1);        
+	 Y_set = (iter->second).at(1);
+         X_set = (iter->second).at(2);
+         if(Y_set.size()>0){
+	     for(it = Y_set.begin(); it!=Y_set.end(); it++){
+		tt = stringSplit2(*it,"...");
+		string tmp = (tt.at(0))+"...datY";
+        	mem.push_back(tmp);
+             }
+	 }
+      	 if(X_set.size()>0){
+      	    for(it = X_set.begin(); it!= X_set.end(); it++){
+		tt = stringSplit2(*it,"...");
+		string tmp = (tt.at(0))+"...datX";
        	        mem.push_back(tmp);
       	    }
       	 }
       	 string str_new = concatenate(mem,';');
-      	 outFile<<currF<<"\t"<<currG<<"\t"<<currT<<"\t"<<str_new<<"\t"<<mem.size()<<endl;
-
+      	 outFile<<currF<<"\t"<<genename<<"\t"<<currT<<"\t"<<str_new<<"\t"<<mem.size()<<endl;
          mem.clear();
-         rna_set.clear();
-         prot_set.clear();
+         Y_set.clear();
+         X_set.clear();
      }
      outFile.close();
      return features;
@@ -2167,14 +2417,14 @@ set<string> createNeighborMap(vector<string> *prot_genes, vector<string> *rna_ge
 
 void ReverseMap(map<string, set<string> >&Map1, map<string, set<string> >&Map2){
 
-      map<string, set<string> >::iterator iter1,iter2;
+      map<string, set<string> >::iterator iter1, iter2;
       set<string> all_children, children, parent_set;
       set<string>::iterator it;
       string parent, child, MaxP;
       int MaxParent=0;
 
       for(iter1 = Map1.begin(); iter1!=Map1.end(); iter1++){
-	       parent = iter1->first;
+	 parent = iter1->first;
          children = iter1->second;
       	 for(it = children.begin(); it!=children.end(); it++){
         		child = *it;
@@ -2188,15 +2438,7 @@ void ReverseMap(map<string, set<string> >&Map1, map<string, set<string> >&Map2){
         		parent_set.clear();
       	 }
       }
-     for(iter2=Map2.begin(); iter2!=Map2.end(); iter2++){
-      	if((iter2->second.size()) >MaxParent){
-      		MaxParent = iter2->second.size();
-      		MaxP = iter2->first;
-      	}
-     }
-     cerr<<"There are a total of "<<Map2.size()<<" TF targets where "<<MaxP<<" has the most TF targetor (parent nodes) of "<<MaxParent<<".\n"<<endl;
 }
-
 
 double computeL2norm(double dd, vector<double>vec){
     double ret=0;
@@ -2206,7 +2448,7 @@ double computeL2norm(double dd, vector<double>vec){
 }
 
 
-double CVKfold(bool useDNA, bool interact,int Kfold,set<string> *Alledges,vector<string> *sub, int thres_size,map<string, int> *InteractMap, map<string, vector<set<string> > > *NeighborMap,  map<string, set<string> > *subtypeMap, map<string, subjectClass> *subjectMap, map<string, PAM_t> &PAMmap){
+double CVKfold(string dir,bool useZ, bool usePrior, string normby, int Kfold,set<string> *Alledges,vector<string> *sub, int thres_size,map<string, int> *InteractMap, map<string, vector<set<string> > > *NeighborMap,  map<string, set<string> > *subtypeMap, map<string, subjectClass> *subjectMap, map<string, PAM_t> *PAMmap){
 
     double minClassError=999.0;
     double selectThres;
@@ -2301,9 +2543,12 @@ double CVKfold(bool useDNA, bool interact,int Kfold,set<string> *Alledges,vector
     for(iter = CVmap.begin(); iter!=CVmap.end(); iter++){
         curr_grp = iter->second;
         for(int h=0; h<sub->size(); h++) if(!containsVec(sub->at(h), &curr_grp)) train_grp.push_back(sub->at(h));
-        vector<double> cvthres = fillPAMmap(useDNA,interact,Alledges,&train_grp,InteractMap,subtypeMap, subjectMap, tmp_map, NeighborMap);
+        vector<double> cvthres = fillPAMmap(useZ,normby, Alledges,&train_grp,InteractMap, subtypeMap, subjectMap, tmp_map, NeighborMap);
         BIGmap[key] = tmp_map;
-        for(int j=0; j<grplabel.size(); j++) if(cvthres.at(j)>maxthres.at(j)) maxthres.at(j) = cvthres.at(j);
+        
+        for(int j=0; j<grplabel.size(); j++){
+            if(cvthres.at(j)>maxthres.at(j)) maxthres.at(j) = cvthres.at(j);
+        }
         tmp_map.clear();
         train_grp.clear();
         curr_grp.clear();
@@ -2316,10 +2561,10 @@ double CVKfold(bool useDNA, bool interact,int Kfold,set<string> *Alledges,vector
 
     for(int i=0; i<thres_size; i++) thresholdparam.push_back(i*space);
 
-    ofstream outF("CVerrors.txt");
+    ofstream outF(dir+ "CVerrors.txt");
     outF<<"Threshold\tCVerror";
     for(int j=0; j<grplabel.size(); j++) outF<<"\tCVerror_"+grplabel.at(j);
-    outF<<"\tEdgesSelected"<<endl;
+    outF<<"\tMeanCV_NumEdgesSelected\tNumEdgesSelected"<<endl;
   
     vector<double> errors, CVerrors, curr_grperror;
     vector<vector<double> > GRPCVerrors;
@@ -2327,18 +2572,16 @@ double CVKfold(bool useDNA, bool interact,int Kfold,set<string> *Alledges,vector
 
     map<string, PAM_t> tmp_pammap;
     double curr_dik;
-    string curr_E, newedge, curr_sub, geneA,geneB;
+    string curr_E, newedge, curr_sub, geneA,geneB, grpClass;
 
     map<string, int>::iterator i_iter;
-    map<string, geneClass>::iterator g_iter;	
-    vector<int> GRPsize;
+    map<string, geneClass>::iterator g_iter, g_iter2;	
     vector<vector<int> > Grpgenesurv;
-    vector<int> Binvec;
+    vector<int> Binvec, index;
     vector<double> geneSurv_vec, vec_dik;
     int genedied, ccc; 
     int groupsize, typeA, typeB, interactINT, gene_counter;
     double x_star,x_starA, x_starB, x_starC, tmp_score;
-    //vector<double> prior;
     vector<double> TMPSCORE;
     double prior;
 
@@ -2353,158 +2596,200 @@ double CVKfold(bool useDNA, bool interact,int Kfold,set<string> *Alledges,vector
             vector<string> testsample = iter->second;
             int thres_error=0;
             vector<int> THRES_error, grpsize;
-	          for(int r=0; r<grplabel.size(); r++){ 
+	    	for(int r=0; r<grplabel.size(); r++){ 
             		THRES_error.push_back(0); 
             		grpsize.push_back(0);
             		GRPCVerrors.push_back(curr_grperror);
-        	   }
-      	    for(int t=0; t<testsample.size();t++){
-                curr_sub = testsample.at(t);
-                sub_iter = subjectMap->find(curr_sub);
-                string grp_sub = findClass(curr_sub, subtypeMap);
-      	        gene_counter=0;
-                vector<double> score;
-      	        if(t==0)for(int gg=0; gg<subtypeMap->size(); gg++) Grpgenesurv.push_back(Binvec);
+        	}
+      	    	for(int t=0; t<testsample.size();t++){
+                	curr_sub = testsample.at(t);
+                	sub_iter = subjectMap->find(curr_sub);
+                	string grp_sub = findClass(curr_sub, subtypeMap);
+      	        	gene_counter=0;
+                	vector<double> score;
+      	        	if(t==0)for(int gg=0; gg<subtypeMap->size(); gg++) Grpgenesurv.push_back(Binvec);
       
-       	        for(int gg=0; gg<subtypeMap->size(); gg++) TMPSCORE.push_back(0); // score resets for every test sample
+       	        	for(int gg=0; gg<subtypeMap->size(); gg++) TMPSCORE.push_back(0); // score resets for every test sample
        	       
-                for(it = Alledges->begin(); it!=Alledges->end(); it++){
-                    string curr_edge = *it;
-      		          i_iter = InteractMap->find(curr_edge);
-      	  	        interactINT = i_iter->second;
-                    piter = tmp_pammap.find(curr_edge);
-                    geneA = piter->second.geneA;
-      		          geneB = piter->second.geneB;
-                    string datatype = piter->second.dataT;
-            		    double xbar = piter->second.xbar_i;
-            		    vec_dik = piter->second.d_ik;
+                	for(it = Alledges->begin(); it!=Alledges->end(); it++){
+                    		string curr_edge = *it;
+      		         	i_iter = InteractMap->find(curr_edge);
+      	  	        	interactINT = i_iter->second;
+                    		piter = tmp_pammap.find(curr_edge);
+                    		geneA = piter->second.geneA;
+      		          	geneB = piter->second.geneB;
+                    		string datatype = piter->second.dataT;
+            		    	double xbar = piter->second.xbar_i;
+            		    	vec_dik = piter->second.d_ik;
             
-            		    if(datatype=="tf") {typeA = 3;typeB=2;}
-            		    if(datatype=="ppi"){typeA=3;typeB=3;}
+            		    	if(datatype=="BTW") {typeA = 3;typeB=2;}
+            		    	if(datatype=="WITHIN"){typeA=3;typeB=3;}
       
-      	            g_iter = sub_iter->second.geneMap.find(geneA);
-                    x_starA = g_iter->second.getReadings(typeA);
-      	            g_iter = sub_iter->second.geneMap.find(geneB);
-      	            x_starB = g_iter->second.getReadings(typeB);
-      	            if(useDNA) x_starC = g_iter->second.getReadings(1);
+      	           		g_iter = sub_iter->second.geneMap.find(geneA);
+                    		x_starA = g_iter->second.getReadings(typeA);
+      	            		g_iter2 = sub_iter->second.geneMap.find(geneB);
+      	            		x_starB = g_iter2->second.getReadings(typeB);
+				x_starC = 0;
+      	            		if(useZ & normby=="Y") x_starC = g_iter2->second.getReadings(1);
+      	            		if(useZ & normby=="X") x_starC = g_iter->second.getReadings(1);
+				//if(t==0 & gene_counter==0) {
+            		       	 //     GRPsize = piter->second.GRPsize;
+                 		//      prior = (double)1/(double) GRPsize.size();
+                 	  	//}
+                   		double si = piter->second.s_i;
+                   		double s0 = piter->second.s_o;
 
-            		    if(t==0 & gene_counter==0) {
-            		       GRPsize = piter->second.GRPsize;
-                 			 prior = (double)1/(double) GRPsize.size();
-                 	  }
-                    double si = piter->second.s_i;
-                    double s0 = piter->second.s_o;
-
-            		   if(datatype=="tf"){
-                			if(interact){
-                			     if(interactINT==1){
-                      				if(!useDNA) x_star = x_starA + x_starB;
-                      				if(useDNA) x_star = x_starA+x_starB-x_starC;
-                			     }
-                			     if(interactINT== -1){
-                      				if(!useDNA) x_star = x_starA-x_starB;
-                      				if(useDNA) x_star = x_starA + (-1*(x_starB-x_starC));
-                			     }
-                			 }
-                			 if(!interact){
-                			     if(!useDNA) x_star = x_starA + x_starB;
-                			     if(useDNA) x_star= x_starA + x_starB - x_starC;
-                			  }
-                	 }
+            		   	if(datatype=="BTW"){
+                		      if(interactINT==1) x_star = x_starA+x_starB-x_starC;
+                		      if(interactINT== -1){
+                      			   if(!useZ) x_star = x_starA-x_starB;
+                      			   if(useZ & normby=="Y") x_star = x_starA + (-1*(x_starB-x_starC));
+                      			   if(useZ & normby=="X") x_star = (x_starA-x_starC) -x_starB;
+                		      }
+                	 	}
             
-            		   if(datatype=="ppi") x_star = x_starA+ x_starB;
-            		     
-            		   for(int gg=0; gg<subtypeMap->size(); gg++){
-            		        double curr_dik = vec_dik[gg];
-                			  //standarding to group threshold
-                			  double modthres = (curr_thres/Avgthres) * maxthres.at(gg);
-                        double dik_new = calNewDik(piter->second.dikstar_new,modthres,gg);
-                			  double xij_new = calNewXbarik(piter->second,modthres,gg,2);
-                			  if(t==0){
+            		   	if(datatype=="WITHIN"){
+            		   		if(interactINT== 1) x_star = x_starA+ x_starB;
+          			 	if(interactINT== -1) x_star = x_starA- x_starB;
+            		   	}
+				for(int gg=0; gg<subtypeMap->size(); gg++){
+            		        	double curr_dik = vec_dik[gg];
+                			//standarding to group threshold
+                			double modthres = (curr_thres/Avgthres) * maxthres.at(gg);
+                        		double dik_new = calNewDik(piter->second.dikstar_new,modthres,gg);
+                			double xij_new = calNewXbarik(piter->second,modthres,gg,2);
+                			if(t==0){
                 			    if(dik_new==0) (Grpgenesurv.at(gg)).push_back(1);
                 			    if(dik_new!=0) (Grpgenesurv.at(gg)).push_back(0);
-                			  }	
-                        TMPSCORE.at(gg) += pow((x_star - xij_new),2)/pow((si+s0),2);
-                   }// close subtype
-                   gene_counter++;
-	           }//close edge
-
-		         for(int gg=0; gg<subtypeMap->size(); gg++){
-		            double ss = TMPSCORE.at(gg) - 2*log(prior);
-                score.push_back(ss);
-             }
-
-      		    bool same = true;
-      		    set<string> tmp_sc;
-      		    string str;
-      		    str = to_string(score.at(0));
-      		    //cerr<<str<<endl;
-      		    tmp_sc.insert(str);
-      		    for(int g=1; g<score.size(); g++){
-      		        str = to_string(score.at(g));
-      		        if(!(contains(str, &tmp_sc))) same = false;
-      		        tmp_sc.insert(str);
-      		    }
-      		    int index;
-      		    if(same) thres_error++;
-      		    if(!same){
-      			    index = whichMin(score);
-      			    if(grplabel[index]!=grp_sub) thres_error++;
-      			    //cerr<<"Not all score at the same"<<endl;
-      		    }
-      		    for(int r=0; r<grplabel.size(); r++){
-      	         if(grp_sub==grplabel.at(r)){
+                			}	
+                        		TMPSCORE.at(gg) += pow((x_star - xij_new),2)/pow((si+s0),2);
+                   		}// close subtype
+                   		gene_counter++;
+	           	}//close edge
+			
+		        double ss,prior_set;
+			int gg=0;
+		        for(s_iter = subtypeMap->begin(); s_iter!=subtypeMap->end(); s_iter++){     
+			    grpClass = s_iter->first;          	    
+		            if(!usePrior) {
+				currGrp = s_iter->second;
+				prior = (double)1/(double) currGrp.size();
+				ss = TMPSCORE.at(gg) - 2*log(prior);
+			    }
+			    if(usePrior){
+				prior_set = (sub_iter->second).getPrior(grpClass);
+				ss = TMPSCORE.at(gg) - 2*log(prior_set);
+			    }
+                	    score.push_back(ss);
+			    gg++;
+             		}
+     			index = whichMin(score);
+			 if(index.size() !=1) {thres_error++;cerr<<"Tie in the minimum scores."<<endl;}
+      			 if(index.size() ==1) if(grplabel[index.at(0)]!=grp_sub) thres_error++;
+     		    	for(int r=0; r<grplabel.size(); r++){
+      	         		if(grp_sub==grplabel.at(r)){
         			      (grpsize.at(r))++;
-        			      if(same) (THRES_error.at(r))++;
-        			      if(!same) {if(grplabel[index]!=grp_sub) (THRES_error.at(r))++;}
-        	       }
-      		    }
-	            score.clear();
-	            TMPSCORE.clear();
+				      if(index.size() !=1) (THRES_error.at(r))++;
+        			      if(index.size() ==1) {if(grplabel[index.at(0)]!=grp_sub) (THRES_error.at(r))++;}
+        	       		}
+      		    	 }
+	            	score.clear();
+			index.clear();
+	            	TMPSCORE.clear();
 	         }// close testsample
 	         double overall_error = (double)thres_error/(double)testsample.size();
 	         double THRES_grpError;
 
         	 for(int r=0; r<grplabel.size(); r++){
-        		    //cerr<<"Current thres: "<<curr_thres<<"\tGrp: "<<grplabel[r]<<"\tThres: "<<THRES_error.at(r)<<"\tGrpSize: "<<grpsize.at(r)<<endl; 
-        		    THRES_grpError= (double) THRES_error.at(r)/ (double) grpsize.at(r);
-        		    if(grpsize.at(r)!=0) GRPCVerrors.at(r).push_back(THRES_grpError);
-        		}
-		        CVerrors.push_back(overall_error);
-		        genedied =0;
+        		//cerr<<"Current thres: "<<curr_thres<<"\tGrp: "<<grplabel[r]<<"\tThres: "<<THRES_error.at(r)<<"\tGrpSize: "<<grpsize.at(r)<<endl;
+        		THRES_grpError= (double) THRES_error.at(r)/ (double) grpsize.at(r);
+        		if(grpsize.at(r)!=0) (GRPCVerrors.at(r)).push_back(THRES_grpError);
+        	 }
+		 CVerrors.push_back(overall_error);
+		 genedied =0;
 
-		        for(int c=0; c<Alledges->size(); c++){
+		 for(int c=0; c<Alledges->size(); c++){
       		     bool died = true;
       		     for(int b=0; b<Grpgenesurv.size(); b++){
-            			vector<int> tmp_binvec = Grpgenesurv.at(b);
-            			if(tmp_binvec.at(c)==0) {died = false; continue;}
+            		vector<int> tmp_binvec = Grpgenesurv.at(b);
+            		if(tmp_binvec.at(c)==0) {died = false; continue;}
       		     }
-		          if(died) genedied++;
-		        }
+		     if(died) genedied++;
+		 }
 
-	          double genesurv = (double)Alledges->size() - (double)genedied;
-        		geneSurv_vec.push_back(genesurv);
-        		Grpgenesurv.clear();
-            THRES_error.clear();
-            grpsize.clear();
-	      }//close CV loop
-        double NumSurv = floor(calMean(geneSurv_vec));
-	      double overallError = calMean(CVerrors);
-	      errors.push_back(overallError);
-	      if(overallError<minClassError){
+	         double genesurv = (double)Alledges->size() - (double)genedied;
+        	 geneSurv_vec.push_back(genesurv);
+        	 Grpgenesurv.clear();
+            	 THRES_error.clear();
+            	 grpsize.clear();
+	    }//close CV loop
+            double NumSurvCV = floor(calMean(geneSurv_vec));
+	    double overallError = calMean(CVerrors);
+	    errors.push_back(overallError);
+	    if(overallError<minClassError){
 	          minClassError = overallError;
 	          selectThres = curr_thres;
-	      }
-	      outF<<"\t"<<overallError;
-	      for(int r=0; r<grplabel.size(); r++) outF<<"\t"<<calMean(GRPCVerrors.at(r));
-	      outF<<"\t"<<NumSurv<<endl;
-	      CVerrors.clear();
-	      GRPCVerrors.clear();
-	      geneSurv_vec.clear();
+	    }
+	    outF<<"\t"<<overallError;
+	    for(int r=0; r<grplabel.size(); r++) outF<<"\t"<<calMean(GRPCVerrors.at(r));
+            
+	    double NumSurv = calNumSurvived(curr_thres,maxthres, Alledges, subtypeMap, PAMmap);
+
+	    outF<<"\t"<<NumSurvCV<<"\t"<<NumSurv<<endl;
+	    CVerrors.clear();
+	    GRPCVerrors.clear();
+	    geneSurv_vec.clear();
     }//close threshold loop
     errors.clear();
     return selectThres;
 }
+
+double calNumSurvived(double thres,vector<double> maxthres, set<string>*Alledges, map<string, set<string> > *subtypeMap,map<string, PAM_t>*PAMmap){
+
+	string curr_edge, datatype;
+	map<string, PAM_t>::iterator piter;
+        map<string, int>::iterator i_iter;
+        set<string>::iterator it;
+        vector<vector<int> > Grpgenesurv;
+	vector<int> Binvec;
+
+        double curr_dik, modthres, dik_new, xbar;
+	vector<double> vec_dik;
+
+        double Avgthres = calMean(maxthres);
+        for(int gg=0; gg<subtypeMap->size(); gg++) Grpgenesurv.push_back(Binvec);
+
+        for(it = Alledges->begin(); it!=Alledges->end(); it++){
+                curr_edge = *it;
+                piter = PAMmap->find(curr_edge);
+                datatype = piter->second.dataT;
+            	xbar = piter->second.xbar_i;
+            	vec_dik = piter->second.d_ik;
+                for(int gg=0; gg<subtypeMap->size(); gg++){
+            		curr_dik = vec_dik[gg];
+                	//standarding to group threshold
+                	modthres = (thres/Avgthres) * maxthres.at(gg);
+                        dik_new = calNewDik(piter->second.dikstar_new,modthres,gg);
+                	if(dik_new==0) (Grpgenesurv.at(gg)).push_back(1);
+                	if(dik_new!=0) (Grpgenesurv.at(gg)).push_back(0);	
+                 }// close subtype
+	 }//close edge
+
+	 int genedied =0;
+         for(int c=0; c<Alledges->size(); c++){
+      	      bool died = true;
+      	      for(int b=0; b<Grpgenesurv.size(); b++){
+            	    vector<int> tmp_binvec = Grpgenesurv.at(b);
+            	    if(tmp_binvec.at(c)==0) {died = false; continue;}
+      	      }
+	      if(died) genedied++;
+	 }
+
+          Grpgenesurv.clear();
+	  double genesurv = (double)Alledges->size() - (double)genedied;
+	  return genesurv;
+}
+
 
 vector<vector<string> > GetNeighbors(string str, map<string, vector<set<string> > >&Map){
     map<string, vector<set<string> > >::iterator iterA, iterB;
@@ -2513,9 +2798,9 @@ vector<vector<string> > GetNeighbors(string str, map<string, vector<set<string> 
     vector<vector<string> > ret;
     vector<string> tmp;
     
-    vector<string> str_vec = stringSplit(str,'_');
-    string gA = str_vec[0] +"_"+str_vec[1];
-    string gB = str_vec[2] +"_"+str_vec[3];
+    vector<string> str_vec = stringSplit2(str,"___");
+    string gA = str_vec[0] ;
+    string gB = str_vec[1];
 
     iterA = Map.find(gA);
     iterB = Map.find(gB);
@@ -2526,13 +2811,13 @@ vector<vector<string> > GetNeighbors(string str, map<string, vector<set<string> 
 
     if(set_rnaA.size()>0){
        for(it1 = set_rnaA.begin(); it1!=set_rnaA.end(); it1++){
-           string curr_g = *it1+"_mrna";
+           string curr_g = *it1;
            if(curr_g!=gB)tmp.push_back(curr_g);
        }
     }
     if(set_protA.size()>0){
         for(it2 = set_protA.begin(); it2!=set_protA.end(); it2++){
-            string curr_g = *it2 +"_prot";
+            string curr_g = *it2;
             if(curr_g!=gB) tmp.push_back(curr_g);
         }
     }
@@ -2540,13 +2825,13 @@ vector<vector<string> > GetNeighbors(string str, map<string, vector<set<string> 
     tmp.clear();
     if(set_rnaB.size()>0){
       	for(it1 = set_rnaB.begin(); it1!=set_rnaB.end(); it1++){
-      	    string curr_g = *it1+"_mrna";
+      	    string curr_g = *it1;
       	    if(curr_g!=gA) tmp.push_back(curr_g);
       	}
     }
     if(set_protB.size()>0){
       	for(it2=set_protB.begin(); it2!=set_protB.end(); it2++){
-          	    string curr_g = *it2+"_prot";
+          	    string curr_g = *it2;
        	    if(curr_g!=gA) tmp.push_back(curr_g);
       	}
     }
@@ -2557,7 +2842,7 @@ vector<vector<string> > GetNeighbors(string str, map<string, vector<set<string> 
 
 }
 
-vector<vector<set<string> > > outputGeneSurv(bool useDNA,bool Interact,vector<double> minThres,set<string> *Alledges,vector<string> *subjects, map<string, set<string> > *subtypeMap, map<string, PAM_t> *PAMmap,map<string, subjectClass> *subjectMap, map<string, int> *InteractMap){
+vector<vector<set<string> > > outputGeneSurv(string dir,bool useZ, bool usePrior,string normby,vector<double> minThres,set<string> *Alledges,vector<string> *subjects, map<string, set<string> > *subtypeMap, map<string, PAM_t> *PAMmap,map<string, subjectClass> *subjectMap, map<string, int> *InteractMap){
 
      vector<vector<set<string> > > edgeSurv;
      vector<set<string> >edgeSurvUp, edgeSurvDown;
@@ -2566,25 +2851,26 @@ vector<vector<set<string> > > outputGeneSurv(bool useDNA,bool Interact,vector<do
      map<string, PAM_t>::iterator piter;
      map<string, set<string> >::iterator s_iter;
      map<string, subjectClass>::iterator sub_iter;
-     map<string, geneClass>::iterator g_iter;
+     map<string, geneClass>::iterator g_iter, g_iter2;
      map<string, int>::iterator i_iter;
      set<string>::iterator it;
      vector<string> currG;
-     string curr_k, curr_edge, geneA, geneB, NodeA,NodeB;
+     string curr_k, curr_edge, geneA, geneB, NodeA,NodeB, gnA, gnB;
      string datatype;
-     int typeA, typeB;
+     int typeA, typeB, interactINT;
          
      int ccc =0;
      bool verbose=true;
-     ofstream outFile("EdgesSelected_minThres.txt");
-     outFile<<"Edge\tNodeA\tNodeB\tInteractionType";
+     ofstream outFile(dir+ "EdgesSelected_minThres.txt");
+     outFile<<"Edge\tNodeA\tNodeB\tGeneA\tGeneB\tInteractionType";
      for(int j=0; j<grplabel.size(); j++) outFile<<"\t"+grplabel.at(j)+"_dikNew\t"+grplabel.at(j)+"_sigEdge\t"+grplabel.at(j)+"_dir\t"+grplabel.at(j)+"_absdiknew";
      outFile<<endl;
      int counter=0;
      int totalSurv=0;
 
-     ofstream outF2("SampleClass_Probabilities.txt");
+     ofstream outF2(dir+"SampleClass_Probabilities.txt");
      outF2<<"Subject";
+     for(int j=0; j<grplabel.size(); j++) outF2<<"\tDiscriminantScore_"+grplabel.at(j);
      for(int j=0; j<grplabel.size(); j++) outF2<<"\tProb_"+grplabel.at(j);
      outF2<<"\tTrueClass\tPredictedClass"<<endl;
 
@@ -2600,22 +2886,26 @@ vector<vector<set<string> > > outputGeneSurv(bool useDNA,bool Interact,vector<do
     		edgeSurvUp.push_back(tmp_setUp);
     		edgeSurvDown.push_back(tmp_setDown); 
     		GrpNodes.push_back(tmp_setUp);
-     }
+      }
   	for(it = Alledges->begin(); it!=Alledges->end(); it++){
   		set<string> Survivors;
   		curr_edge = *it;
+		i_iter = InteractMap->find(curr_edge);
+		interactINT = i_iter->second;
   		piter = PAMmap->find(curr_edge);
-  		vector<string> strVec = stringSplit(curr_edge,'_');
-  		NodeA = strVec.at(0)+"_"+strVec.at(1);
-  		NodeB = strVec.at(2)+"_"+strVec.at(3);
+  		vector<string> strVec = stringSplit2(curr_edge,"___");
+  		NodeA = strVec.at(0);
+  		NodeB = strVec.at(1);
+                gnA = (stringSplit2(NodeA,"...")).at(0);
+                gnB = (stringSplit2(NodeB,"...")).at(0);
+
   		allNodes.insert(NodeA);
   		allNodes.insert(NodeB);
   		datatype = piter->second.dataT;
-  	  	if(datatype=="tf") {typeA = 3;typeB=2;}
-  	  	if(datatype=="ppi") {typeA = 3;typeB=3;} 
+  	  	if(datatype=="BTW") {typeA = 3;typeB=2;}
+  	  	if(datatype=="WITHIN") {typeA = 3;typeB=3;} 
   		bool survive=false;
-  		vector<double> curr_dik = piter->second.dikstar_new;
-		
+  		vector<double> curr_dik = piter->second.dikstar_new;		
 
   		for(int gg=0; gg<grplabel.size(); gg++){
   		    string surv="died";	
@@ -2635,7 +2925,8 @@ vector<vector<set<string> > > outputGeneSurv(bool useDNA,bool Interact,vector<do
   	   	}
   		if(survive){
   		     totalSurv++;
-  		     outFile<<curr_edge<<"\t"<<NodeA<<"\t"<<NodeB<<"\t"<<datatype;
+  		     outFile<<curr_edge<<"\t"<<NodeA<<"\t"<<NodeB<<"\t"<<gnA<<"\t"<<gnB<<"\t"<<datatype;
+
   	       		for(int gg=0;gg<grplabel.size(); gg++) {
   			   double tmp_d = keepdik.at(gg);
   			   string dir = "died";
@@ -2649,85 +2940,97 @@ vector<vector<set<string> > > outputGeneSurv(bool useDNA,bool Interact,vector<do
   	 keepdik.clear();
   	 keeplab.clear();
   	}//close Alledges
-	cerr<<"\n\nAt the minimum threshold, a total of "<<totalSurv<<" edges survived across the subtypes and within each group, number of edges survived that are:"<<endl;
+	cerr<<"\n\nAt the specified threshold, a total of "<<totalSurv<<" edges were selected and the number of edges predictive for each group/subtype is:"<<endl;
 	for(int k=0; k<grplabel.size(); k++) cerr<<grplabel.at(k)<<":\t"<<Surv_GRP[k]<<endl;
 
 	cerr<<"\nCalculating class probabilities on samples..."<<endl;
         
-	string PredClass;
+	string PredClass, currGrp;
         set<string> edgeSelected;
-        double si, s0,xbar,x_star, x_starA, x_starB, x_starC, tmp_score, prior;
-	vector<double> score;
+        double si, s0,xbar,x_star, x_starA, x_starB, x_starC, tmp_score, prior, pp,xij_new;
+	vector<double> score, prior_vec;
 	//vector<int> classSize;
-	int interactINT;
 	double thres_error=0;
+        int SubjectNotfound =0;
 
-	//for(int i=0; i<grplabel.size(); i++) classSize.push_back(0);
- 
 	for(int t =0; t<subjects->size(); t++){
 	    string curr_sub = subjects->at(t);
 	    sub_iter = subjectMap->find(curr_sub);
 	    string grp_sub = findClass(curr_sub, subtypeMap);
+	    if(grp_sub.empty()) SubjectNotfound++;
 	    for(int gg=0; gg<grplabel.size(); gg++){
 		//if(grp_sub == grplabel.at(gg)) classSize.at(gg)++;
 		tmp_score =0;
+		if(usePrior){
+		   currGrp = grplabel.at(gg);
+		   pp = sub_iter->second.getPrior(currGrp);
+		   prior_vec.push_back(pp);
+		}
 		for(it = EdgeSurv.begin(); it!=EdgeSurv.end(); it++){
-		    string curr_edge = *it;
-		    if(Interact){
-		    	i_iter = InteractMap->find(curr_edge);
-		    	interactINT = i_iter->second;
-		    }
+		    curr_edge = *it;
+		    i_iter = InteractMap->find(curr_edge);
+		    interactINT = i_iter->second;
 		    piter = PAMmap->find(curr_edge);
 		    geneA = piter->second.geneA;
 		    geneB = piter->second.geneB;
 		    datatype = piter->second.dataT;
 		    xbar = piter->second.xbar_i;
-		    if(datatype=="tf"){ typeA =3; typeB=2;}
-		    if(datatype =="ppi"){ typeA=3; typeB=3;}
+		    if(datatype=="BTW"){ typeA =3; typeB=2;}
+		    if(datatype =="WITHIN"){ typeA=3; typeB=3;}
 		    g_iter = sub_iter->second.geneMap.find(geneA);
 		    x_starA = g_iter->second.getReadings(typeA);	
-		    g_iter = sub_iter->second.geneMap.find(geneB);
-		    x_starB = g_iter->second.getReadings(typeB);	
-		    if(useDNA) x_starC = g_iter->second.getReadings(1);
+      	            g_iter2 = sub_iter->second.geneMap.find(geneB);
+      	            x_starB = g_iter2->second.getReadings(typeB);
+		    x_starC = 0;
+      	            if(useZ & normby=="Y") x_starC = g_iter2->second.getReadings(1);
+      	            if(useZ & normby=="X") x_starC = g_iter->second.getReadings(1);
 		    si = piter->second.s_i;	
 		    s0 = piter->second.s_o;
 
-		    if(datatype=="tf"){
-			if(Interact){
-			    if(interactINT==1){
-				if(!useDNA) x_star = x_starA+x_starB;
-				if(useDNA) x_star = x_starA+x_starB-x_starC;
-			    }
-			   if(interactINT== -1){
-				if(!useDNA) x_star = x_starA - x_starB;
-				if(useDNA) x_star = x_starA + (-1*(x_starB-x_starC));
-			   }
-			}
-			if(!Interact){
-			    if(!useDNA) x_star = x_starA +x_starB;
-			    if(useDNA) x_star = x_starA +x_starB - x_starC;
-			}
-		    }
-		    if(datatype=="ppi") x_star = x_starA+x_starB;
-		    double xij_new = calNewXbarik(piter->second, minThres.at(gg), gg, 2);
+            	    if(datatype=="BTW"){
+                	if(interactINT==1) x_star = x_starA+x_starB-x_starC;
+                	if(interactINT== -1){
+                      		if(!useZ) x_star = x_starA-x_starB;
+                      		if(useZ & normby=="Y") x_star = x_starA + (-1*(x_starB-x_starC));
+                      		if(useZ & normby=="X") x_star = (x_starA-x_starC) -x_starB;
+                	}
+                    }       
+            	    if(datatype=="WITHIN"){
+            		   if(interactINT== 1) x_star = x_starA+ x_starB;
+          		   if(interactINT== -1) x_star = x_starA- x_starB;
+            	    }
+		    xij_new = calNewXbarik(piter->second, minThres.at(gg), gg, 2);
 		    tmp_score += (pow((x_star-xij_new),2)/pow((si+s0),2));
-		 }
+  	
+		 }// close Edges loop
 		 score.push_back(tmp_score);
 	   }// close subtype
-	   prior = (double) 1/(double) grplabel.size();
-	   double num=0, den=0, maxS=0;
+
+	   if(!usePrior) prior = (double) 1/(double) grplabel.size();
+	   double num=0, den=0, maxS=0, sss;
 	   vector<double> prob;
+
 	   for(int gg=0; gg<grplabel.size(); gg++){
-		score.at(gg) = score.at(gg) - 2*log(prior);
+		if(!usePrior) sss = score.at(gg) - 2*log(prior);
+		if(usePrior) sss= score.at(gg) - 2*log(prior_vec.at(gg));
+		if(sss!=sss){
+		    cerr<<"Current subject: "<<curr_sub<<endl;
+ 		    cerr<<"grp label: "<<grplabel.at(gg)<<endl;
+		    cerr<<"grp score: "<<sss<<endl;	
+		}
+		 score.at(gg) = sss;
 		double currMax = score.at(gg);
 		if(currMax>maxS) maxS = currMax;
 	   }
+	   //cerr<<"Max S: "<<maxS<<endl;
 	   for(int gg=0; gg<grplabel.size(); gg++){
 		double ss = score.at(gg) - maxS;
 		num = exp((-0.5)*ss);
 		den += num;
 	   	prob.push_back(num);
+
 	   }
+
 	   for(int gg=0; gg<grplabel.size(); gg++) prob.at(gg) = prob.at(gg)/den;
 	   set<string> tmp_sc;
 	   bool same = true;
@@ -2748,12 +3051,15 @@ vector<vector<set<string> > > outputGeneSurv(bool useDNA,bool Interact,vector<do
 		if(PredClass!= grp_sub) thres_error++;
 	   }
 	   outF2<<curr_sub;
+       for(int gg=0; gg<grplabel.size(); gg++) outF2<<"\t"<<score.at(gg);
 	   for(int gg=0; gg<grplabel.size(); gg++) outF2<<"\t"<<prob.at(gg);
 	   outF2<<"\t"<<grp_sub<<"\t"<<PredClass<<endl;
 	   score.clear();
 	   prob.clear();
-
+	   prior_vec.clear();
        }
+
+	//cerr<<"Number of subjects not found is "<<SubjectNotfound<<endl;
 	double ERROR = (double) thres_error/(double)subjects->size();
         double ee = round((ERROR*1000))/10;
 
@@ -2761,25 +3067,51 @@ vector<vector<set<string> > > outputGeneSurv(bool useDNA,bool Interact,vector<do
 
   	edgeSurv.push_back(edgeSurvUp);
   	edgeSurv.push_back(edgeSurvDown);
+
+     	ofstream outFile2(dir+ "PredictiveEdges_Parameters.txt");
+     	outFile2<<"GeneA\tGeneB\tInteractionType\tSign\tSi\tSo";
+     	for(int j=0; j<grplabel.size(); j++) outFile2<<"\t"+grplabel.at(j)+"_Xikbar";
+    	outFile2<<endl;
+	for(it = EdgeSurv.begin(); it!=EdgeSurv.end(); it++){
+	        curr_edge = *it;
+  		i_iter = InteractMap->find(curr_edge);
+		interactINT = i_iter->second;
+		piter = PAMmap->find(curr_edge);
+		geneA = piter->second.geneA;
+		geneB = piter->second.geneB;
+                gnA = (stringSplit2(geneA,"...")).at(0);
+                gnB = (stringSplit2(geneB,"...")).at(0);
+		datatype = piter->second.dataT;
+		si = piter->second.s_i;
+		s0 = piter->second.s_o;
+		outFile2<<gnA<<"\t"<<gnB<<"\t"<<datatype<<"\t"<<interactINT<<"\t"<<si<<"\t"<<s0;
+		for(int gg=0; gg<grplabel.size(); gg++){
+			xij_new = calNewXbarik(piter->second, minThres.at(gg), gg, 2);
+			outFile2<<"\t"<<xij_new;
+		}
+		outFile2<<endl;
+	}
   
-  	ofstream outFile2("AttributesTable.txt");
-	outFile2<<"Node\tGene\tType";
-	for(int j = 0; j<grplabel.size(); j++) outFile2<<"\t"+grplabel.at(j)+"_surv";
-	outFile2<<endl;	
+  	ofstream outFile3(dir+"AttributesTable.txt");
+	outFile3<<"Node\tGene\tType";
+	for(int j = 0; j<grplabel.size(); j++) outFile3<<"\t"+grplabel.at(j)+"_surv";
+	outFile3<<endl;	
 	
 	for(it = allNodes.begin(); it!=allNodes.end(); it++){
 		string currN = *it;
-		vector<string> strVec = stringSplit(currN,'_');
-		outFile2<<currN<<"\t"<<strVec.at(0)<<"\t"<<strVec.at(1);
+		vector<string> strVec = stringSplit2(currN,"...");
+		string genename = strVec.at(0);
+		outFile3<<currN<<"\t"<<genename<<"\t"<<strVec.at(1);
 		for(int j=0; j<grplabel.size(); j++){
 		   string surv="died";
-		   if(contains(currN, &GrpNodes.at(j)))surv = strVec.at(1);
-		   outFile2<<"\t"<<surv;
+		   if(contains(currN, &GrpNodes.at(j))) surv = strVec.at(1);
+		   outFile3<<"\t"<<surv;
 		}
-		outFile2<<endl;
+		outFile3<<endl;
   	}
 	outFile.close();
 	outFile2.close();
+	outFile3.close();
 	outF2.close();
 	return edgeSurv;
 }
@@ -2789,10 +3121,10 @@ vector<vector<set<string> > > outputGeneSurv(bool useDNA,bool Interact,vector<do
 void createNNmap(set<string> *Alledges, map<string, vector<set<string> > > *FDneighborMap, map<string, vector<set<string> > > *NNmap){
 
     set<string>::iterator it,itA, itB;
-    set<string> *Neigh_rna = NULL;
-    set<string> *Neigh_prot = NULL;
-    set<string> *tf_neigh = NULL;
-    set<string> *ppi_neigh = NULL;
+    set<string> *Neigh_Y = NULL;
+    set<string> *Neigh_X = NULL;
+    set<string> *BTW_neigh = NULL;
+    set<string> *WITHIN_neigh = NULL;
     string NodeA, NodeB, curr_edge;
     map<string, vector<set<string> > >::iterator iter1, iter2;
     vector<string> strVec;
@@ -2800,61 +3132,61 @@ void createNNmap(set<string> *Alledges, map<string, vector<set<string> > > *FDne
     vector<set<string> > *NN = NULL;
 
     for(it = Alledges->begin(); it!=Alledges->end(); it++){
-        Neigh_rna = new set<string>; 
-	      Neigh_prot = new set<string>;
-        tf_neigh = new set<string>;
-        ppi_neigh = new set<string>;
-	      NN = new vector<set<string> >;
+        Neigh_Y = new set<string>; 
+	Neigh_X = new set<string>;
+        BTW_neigh = new set<string>;
+        WITHIN_neigh = new set<string>;
+	NN = new vector<set<string> >;
 
       	curr_edge = *it;
-      	strVec = stringSplit(curr_edge,'_');
-      	NodeA = strVec.at(0) +"_"+ strVec.at(1);
-      	NodeB = strVec.at(2) +"_"+ strVec.at(3);	
+      	strVec = stringSplit2(curr_edge,"___");
+      	NodeA = strVec.at(0);
+      	NodeB = strVec.at(1);	
       	iter1 = FDneighborMap->find(NodeA);
       	iter2 = FDneighborMap->find(NodeB);
-        *Neigh_rna = iter1->second.at(1);
-      	*Neigh_prot = iter1->second.at(2);
-      	if(Neigh_rna->size()>0){
-      	   for(itA = Neigh_rna->begin(); itA!=Neigh_rna->end(); itA++){
-        		  string tmpstr = NodeA+"_"+*itA+"_mrna";
-        		  if(contains(tmpstr,Alledges)) tf_neigh->insert(tmpstr);
+        *Neigh_Y = iter1->second.at(1);
+      	*Neigh_X = iter1->second.at(2);
+      	if(Neigh_Y->size()>0){
+      	   for(itA = Neigh_Y->begin(); itA!=Neigh_Y->end(); itA++){
+        		  string tmpstr = NodeA+"___"+*itA;
+        		  if(contains(tmpstr,Alledges)) BTW_neigh->insert(tmpstr);
         	 }
         }
-      	if(Neigh_prot->size()>0){
-      	   for(itB = Neigh_prot->begin(); itB!=Neigh_prot->end(); itB++){
-            		string tmpstr = NodeA+"_"+*itB+"_prot";
+      	if(Neigh_X->size()>0){
+      	   for(itB = Neigh_X->begin(); itB!=Neigh_X->end(); itB++){
+            		string tmpstr = NodeA+"___"+*itB;
             		string newstr = getEdge(tmpstr,Alledges);
-      	        if(!newstr.empty()) ppi_neigh->insert(newstr);
+      	        if(!newstr.empty()) WITHIN_neigh->insert(newstr);
       	   }
         }
-      	*Neigh_rna = iter2->second.at(1);
-      	*Neigh_prot = iter2->second.at(2);
-      	if(Neigh_rna->size()>0){
-      	   for(itA = Neigh_rna->begin(); itA!=Neigh_rna->end(); itA++){
-      		string tmpstr = NodeB+"_"+*itA+"_mrna";
-      	        if(contains(tmpstr,Alledges)) tf_neigh->insert(tmpstr);
+      	*Neigh_Y = iter2->second.at(1);
+      	*Neigh_X = iter2->second.at(2);
+      	if(Neigh_Y->size()>0){
+      	   for(itA = Neigh_Y->begin(); itA!=Neigh_Y->end(); itA++){
+      		string tmpstr = NodeB+"___"+*itA;
+      	        if(contains(tmpstr,Alledges)) BTW_neigh->insert(tmpstr);
       	   }
       	}
-      	if(Neigh_prot->size()>0){
-      	   for(itB = Neigh_prot->begin(); itB!=Neigh_prot->end(); itB++){
-      		string tmpstr = NodeB+"_"+*itB+"_prot";
+      	if(Neigh_X->size()>0){
+      	   for(itB = Neigh_X->begin(); itB!=Neigh_X->end(); itB++){
+      		string tmpstr = NodeB+"___"+*itB;
       		string newstr = getEdge(tmpstr,Alledges);
-      		if(!newstr.empty()) ppi_neigh->insert(newstr);
+      		if(!newstr.empty()) WITHIN_neigh->insert(newstr);
       	   }
       	}
-      	NN->push_back(*tf_neigh);
-      	NN->push_back(*ppi_neigh);
+      	NN->push_back(*BTW_neigh);
+      	NN->push_back(*WITHIN_neigh);
       	(*NNmap)[curr_edge] = *NN;
  
-        delete tf_neigh;
-      	delete ppi_neigh;
-      	delete Neigh_rna;
-      	delete Neigh_prot;
+        delete BTW_neigh;
+      	delete WITHIN_neigh;
+      	delete Neigh_Y;
+      	delete Neigh_X;
       	delete NN;
-      	tf_neigh = NULL;
-      	ppi_neigh = NULL;
-      	Neigh_rna = NULL;
-      	Neigh_prot = NULL;
+      	BTW_neigh = NULL;
+      	WITHIN_neigh = NULL;
+      	Neigh_Y = NULL;
+      	Neigh_X = NULL;
       	counter++;
     }
 
@@ -2864,8 +3196,8 @@ string getEdge( string str, set<string> * Edges){
      string ret;
      if(contains(str, Edges)) ret = str;
      else{
-      	vector<string> vecstr = stringSplit(str,'_');
-      	string newstr = (vecstr.at(2)+"_"+vecstr.at(3))+"_"+(vecstr.at(0)+"_"+vecstr.at(1));
+      	vector<string> vecstr = stringSplit2(str,"___");
+      	string newstr = vecstr.at(1)+"___"+ vecstr.at(0);
       	if(contains(newstr,Edges)) ret = newstr;
      }
      return ret;
@@ -2900,25 +3232,41 @@ vector<double> hypergeo(set<string> *vec, set<string> *DE, set<string> *bglist){
     return ret;
 }
 
-void CreateOutput(string lab,vector<string> PATHlist,int dir, set<string> *geneLIST, set<string> *bgLIST, map<string, set<string> > *PATHEdgemap, map<string, set<string> > *PATHmap, map<string, string> *PATHwayAnnot,int mink){
+string getTag(string str, map<string, string > *Map){
+   string ret="NA";
+   map<string, string>::iterator iter;
+   for(iter = Map->begin(); iter!=Map->end(); iter++){
+      if((iter->second)== str) ret = (iter->first);
+      continue;
+   }
+   return ret;
+}
+
+void CreateOutput(string directory, string lab,vector<string> PATHlist,int dir, set<string> *geneLIST, set<string> *bgLIST, map<string, set<string> > *PATHEdgemap, map<string, set<string> > *PATHmap, map<string, string> *PATHwayAnnot,int mink){
 
   string DIR, Annot;
+    string geneSET="";
   if(dir==0) DIR = "up";
   if(dir==1) DIR ="down";
   vector<string> collect;
-  set<string> memEdges, memGenes, AllG, tmp_setN;
+  set<string> memEdges, memGenes, AllG,All_genesignature,common_set, tmp_setN;
   set<string>::iterator it;
   map<string, string>::iterator a_iter;
-  vector<string> tmpVec;
-  ofstream outF(lab+"_Enrichment_"+DIR+".txt");
-  outF <<"Pathway\tPathAnnotation\tHypergeoPval\tNumGene_inPathway\tNumGenes_inbg\tPropPathway\tNumEdgesformed_inbg\tEnriched_Edgesize"<<endl;
+  vector<string> tmpVec,common_setV;
+  ofstream outF(directory+lab+"_Enrichment_"+DIR+".txt");
+  outF<<"Pathway\tPathAnnotation\tHypergeoPval\tNumGene_inPathway\tNumGenes_inbg\tPropPathway\tNumEdgesformed_inbg\tEnriched_Edgesize\tGeneset_Enriched"<<endl;
   map<string, set<string> >::iterator M_iter, m_iter;
   
   for(it = bgLIST->begin(); it!= bgLIST->end(); it++){
-    tmpVec = stringSplit(*it,'_');
-    AllG.insert(tmpVec.at(0));
-    AllG.insert(tmpVec.at(2));
+    tmpVec = stringSplit2(*it,"___");
+    AllG.insert((stringSplit2(tmpVec.at(0),"...")).at(0));
+    AllG.insert((stringSplit2(tmpVec.at(1),"...")).at(0));
   }
+    for(it = geneLIST->begin(); it!= geneLIST->end(); it++){
+      tmpVec = stringSplit2(*it,"___");
+      All_genesignature.insert((stringSplit2(tmpVec.at(0),"...")).at(0));
+      All_genesignature.insert((stringSplit2(tmpVec.at(1),"...")).at(0));
+    }
 
   for(int i =0; i<PATHlist.size(); i++){
       string path = PATHlist.at(i);
@@ -2929,10 +3277,15 @@ void CreateOutput(string lab,vector<string> PATHlist,int dir, set<string> *geneL
       memGenes = m_iter->second;
       Annot = a_iter->second;
       tmp_setN = IntersectSet(AllG, memGenes);
+      common_set = IntersectSet(All_genesignature, tmp_setN);
+      if(common_set.size()>0){
+          common_setV = SetToVec(common_set);
+          geneSET = concatenate(common_setV,';');
+      }
       double pp = (double) tmp_setN.size()/ (double) memGenes.size();
       vector<double> hyperpval = hypergeo(&memEdges, geneLIST, bgLIST);
       if(hyperpval[2]>=mink){
-            outF<<path<<"\t"<<Annot<<"\t"<<hyperpval.at(0)<<"\t"<< memGenes.size()<<"\t"<<tmp_setN.size()<<"\t"<<pp<<"\t"<<memEdges.size()<< "\t"<<hyperpval.at(2)<<endl;
+            outF<<path<<"\t"<<Annot<<"\t"<<hyperpval.at(0)<<"\t"<<memGenes.size()<<"\t"<<tmp_setN.size() <<"\t"<<pp<<"\t"<<memEdges.size()<< "\t"<<hyperpval.at(2)<<"\t"<< geneSET<<endl;
       }
   }
   outF.close();
@@ -2947,9 +3300,9 @@ vector<string> createEdgeOrientedPathwayMap(set<string> *features,set<string> *A
     vector<string> tmpVec, ret;
     
     for(it = Alledges->begin(); it!= Alledges->end(); it++){
-        tmpVec = stringSplit(*it,'_');
-        AllG.insert(tmpVec.at(0));
-        AllG.insert(tmpVec.at(2));
+    	tmpVec = stringSplit2(*it,"___");
+    	AllG.insert((stringSplit2(tmpVec.at(0),"...")).at(0));
+    	AllG.insert((stringSplit2(tmpVec.at(1),"...")).at(0));
     }
     for(piter1=PATHmap->begin(); piter1!=PATHmap->end(); piter1++){
         curr_p = piter1->first;
@@ -2974,23 +3327,23 @@ set<string> createMEM(set<string> *SET,set<string> *ALLedges){
     set<string> ret;
     set<string>::iterator it;
     string edge, edgenew, geneA, geneB;    
-    vector<string> vecString;
+    vector<string> vecString, tmpA, tmpB;
 
     for(it = ALLedges->begin(); it!=ALLedges->end(); it++){
       	edge = *it;
-      	vecString = stringSplit(edge,'_');
-      	geneA = vecString.at(0);
-      	geneB = vecString.at(2);
+      	vecString = stringSplit2(edge,"___");
+      	geneA =(stringSplit2(vecString.at(0),"...")).at(0);
+      	geneB =(stringSplit2(vecString.at(1),"...")).at(0);
       	if(contains(geneA,SET) & contains(geneB,SET)) ret.insert(edge);
     }
     return ret;
 }
 
 
-void printBGlist(set<string> edges){
+void printBGlist(string dir, set<string> edges){
 
     set<string>::iterator it;
-    ofstream outF("BGlist.txt");
+    ofstream outF(dir+"BGlist.txt");
     for(it=edges.begin(); it!=edges.end(); it++) outF<<*it<<endl;
     outF.close();
 }
@@ -3008,7 +3361,7 @@ vector<double> Ztrans(vector<double> vec, double mean, double sd){
 }
 
 
-void StandardizeFeatures(vector<string> sub, vector<string> genes, int datatype, map<string, subjectClass> &subjectMap){
+void StandardizeFeatures(string dir, vector<string> sub, vector<string> genes, int datatype, map<string, subjectClass> &subjectMap){
 
      map<string, subjectClass>::iterator s_iter;
      map<string, geneClass>::iterator g_iter;
@@ -3016,11 +3369,11 @@ void StandardizeFeatures(vector<string> sub, vector<string> genes, int datatype,
      string curr_g,curr_sub;    
      double vec_mean, vec_sd;
      string lab;
-     if(datatype==1) lab="DNA";
-     if(datatype==2) lab="RNA";
-     if(datatype==3) lab="PROT";
-     ofstream outF("Ztransform_"+lab+".txt");
-     outF<<"Gene";
+     if(datatype==1) lab="dataZ";
+     if(datatype==2) lab="dataY";
+     if(datatype==3) lab="dataX";
+     ofstream outF(dir+"Ztransform_"+lab+".txt");
+     outF<<"Feature";
      for(int j=0; j<sub.size(); j++) outF<<"\t"<<sub.at(j);     
      outF<<endl;
      for(int i=0; i<genes.size(); i++){
@@ -3035,9 +3388,9 @@ void StandardizeFeatures(vector<string> sub, vector<string> genes, int datatype,
       	    curr_sub = sub.at(j);
             s_iter = subjectMap.find(curr_sub);
             g_iter = (s_iter->second.geneMap).find(curr_g);
-            if(datatype==1)g_iter->second.addDNA(z_vec.at(j));
-            if(datatype==2)g_iter->second.addRNA(z_vec.at(j));
-            if(datatype==3)g_iter->second.addProt(z_vec.at(j));
+            if(datatype==1) g_iter->second.addZ(z_vec.at(j));
+            if(datatype==2) g_iter->second.addY(z_vec.at(j));
+            if(datatype==3) g_iter->second.addX(z_vec.at(j));
       	}
       	outF<<endl;
         tmp_vec.clear();
